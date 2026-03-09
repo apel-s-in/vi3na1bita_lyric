@@ -177,3 +177,6 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .preview-subline{opacity:.92;margin-bottom:2px}
 .preview-underlay{color:#7fbfff}
 .preview-overlay{color:#8fe08f}
+
+/* DRAG & DROP */
+.timeline-wrap[style*="outline"]{transition:outline .15s}
