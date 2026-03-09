@@ -10,38 +10,54 @@
 <header class="toolbar">
   <div class="row">
     <div class="grp">
-      <label class="btn">Load Audio<input id="audio-upload" type="file" accept="audio/*" hidden></label>
-      <label class="btn">Load Line JSON<input id="line-upload" type="file" accept=".json,application/json" hidden></label>
-      <label class="btn">Load Words JSON<input id="words-upload" type="file" accept=".json,application/json" hidden></label>
-      <button class="btn pri" id="btn-export-active">Export Active</button>
+      <label class="btn">📂 Audio<input id="audio-upload" type="file" accept="audio/*" hidden></label>
+      <label class="btn">📄 Line JSON<input id="line-upload" type="file" accept=".json,application/json" hidden></label>
+      <label class="btn">📝 Words JSON<input id="words-upload" type="file" accept=".json,application/json" hidden></label>
+      <span class="sep"></span>
+      <button class="btn pri" id="btn-export-active">⬇ Export Active</button>
       <button class="btn" id="btn-export-line">Export Line</button>
       <button class="btn" id="btn-export-words">Export Words</button>
       <button class="btn" id="btn-export-all">Export All</button>
-      <button class="btn" id="btn-validate">Validate</button>
-      <button class="btn" id="btn-restore-session">Restore Draft</button>
-      <button class="btn" id="btn-hotkeys">Hotkeys</button>
-      <button class="btn" id="btn-help">Help</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-validate">✓ Validate</button>
+      <button class="btn" id="btn-restore-session">⟳ Restore</button>
+      <button class="btn" id="btn-hotkeys">⌨ Hotkeys</button>
+      <button class="btn" id="btn-help">? Help</button>
     </div>
     <div class="grp">
-      <button class="btn" id="btn-play">Play/Pause</button>
-      <button class="btn" id="btn-stop">Stop</button>
-      <button class="btn" id="btn-center-playhead">Center</button>
-      <button class="btn" id="btn-loop">Loop Sel</button>
+      <button class="btn pri" id="btn-play">▶ Play</button>
+      <button class="btn" id="btn-stop">■ Stop</button>
+      <button class="btn" id="btn-loop">⇄ Loop</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-mute">🔊</button>
+      <input id="volume-slider" type="range" min="0" max="100" value="100" style="width:70px">
+      <span class="ro" id="volume-readout">100%</span>
+      <span class="sep"></span>
       <span class="time" id="time-display">0:00.00 / 0:00.00</span>
     </div>
     <div class="grp">
       <span class="badge" id="mode-indicator">TRACKS: 0</span>
       <span class="save-status" id="save-status">Saved</span>
-      <button class="btn" id="btn-undo">Undo</button>
-      <button class="btn" id="btn-redo">Redo</button>
+      <button class="btn" id="btn-undo">↩ Undo</button>
+      <button class="btn" id="btn-redo">↪ Redo</button>
     </div>
   </div>
 
   <div class="row row2">
     <div class="grp">
-      <span>Z:</span><input id="zoom-slider" type="range" min="10" max="320" value="80"><span class="ro" id="zoom-readout">80 px/s</span>
+      <span>Z:</span>
+      <input id="zoom-slider" type="range" min="10" max="320" value="80" style="width:80px">
+      <span class="ro" id="zoom-readout">80 px/s</span>
       <span class="sep"></span>
-      <span>V:</span><input id="vzoom-slider" type="range" min="70" max="220" value="100"><span class="ro" id="vzoom-readout">100%</span>
+      <span>V:</span>
+      <input id="vzoom-slider" type="range" min="70" max="220" value="100" style="width:60px">
+      <span class="ro" id="vzoom-readout">100%</span>
+      <span class="sep"></span>
+      <button class="btn" id="btn-center-playhead">◎</button>
+      <button class="btn" id="btn-fit-song">Fit</button>
+      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
+      <button class="btn" id="btn-scroll-selection">→Sel</button>
+      <button class="btn" id="btn-goto-selection">Go Sel</button>
       <span class="sep"></span>
       <span>Snap:</span>
       <select id="snap-select">
@@ -55,41 +71,34 @@
       <span>Trim:</span>
       <select id="drag-mode">
         <option value="free">Free</option>
-        <option value="keep">Keep Order</option>
+        <option value="keep">No-Overlap</option>
         <option value="roll">Roll Trim</option>
-        <option value="ripple">Ripple Trim</option>
+        <option value="ripple">Ripple</option>
       </select>
       <span class="sep"></span>
       <span>Layer:</span>
       <select id="layer-mode">
         <option value="auto">Auto</option>
-        <option value="line">Lines</option>
-        <option value="word">Words</option>
+        <option value="line">Lines only</option>
+        <option value="word">Words only</option>
         <option value="char">Chars</option>
       </select>
-      <span class="sep"></span>
-      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
-      <button class="btn" id="btn-fit-song">Fit Song</button>
-      <button class="btn" id="btn-scroll-selection">Scroll Sel</button>
-      <button class="btn" id="btn-goto-selection">Go To Sel</button>
     </div>
 
     <div class="grp">
-      <button class="btn" id="btn-select-all">Select All</button>
-      <button class="btn" id="btn-deselect">Deselect</button>
-      <button class="btn" id="btn-split">Split at Playhead</button>
-      <button class="btn" id="btn-merge-prev">Merge Prev</button>
-      <button class="btn" id="btn-merge">Merge Next</button>
-      <button class="btn" id="btn-duplicate">Duplicate</button>
-      <button class="btn" id="btn-add-line">Add Line</button>
-      <button class="btn" id="btn-add-word">Add Word</button>
-      <button class="btn" id="btn-delete">Delete</button>
+      <button class="btn" id="btn-select-all">Sel All</button>
+      <button class="btn" id="btn-deselect">Desel</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-split">✂ Split</button>
+      <button class="btn" id="btn-merge-prev">⊲ Mrg Prev</button>
+      <button class="btn" id="btn-merge">Mrg Next ⊳</button>
+      <button class="btn" id="btn-duplicate">⧉ Dup</button>
+      <button class="btn" id="btn-add-line">+ Line</button>
+      <button class="btn" id="btn-add-word">+ Word</button>
+      <button class="btn" id="btn-delete">🗑 Del</button>
     </div>
 
     <div class="grp">
-      <button class="btn" id="btn-mute">Mute</button>
-      <span>Vol:</span><input id="volume-slider" type="range" min="0" max="100" value="100"><span class="ro" id="volume-readout">100%</span>
-      <span class="sep"></span>
       <label class="ck"><input id="auto-scroll" type="checkbox" checked>Auto-Scroll</label>
       <label class="ck"><input id="autosave-enabled" type="checkbox" checked>Autosave</label>
       <select id="autosave-interval">
@@ -107,10 +116,8 @@
       <canvas id="ruler-canvas"></canvas>
       <canvas id="grid-canvas"></canvas>
       <canvas id="waveform-canvas"></canvas>
-
       <div class="playhead" id="playhead"><div class="playhead-handle" id="playhead-handle"></div></div>
       <div id="selection-box" class="selbox hidden"></div>
-
       <div class="track-headers" id="track-headers"></div>
       <div id="tracks-container" class="tracks"></div>
     </div>
@@ -131,23 +138,27 @@
   </aside>
 </main>
 
+<!-- Context Menu -->
 <div id="context-menu" class="ctx hidden">
-  <div class="ctx-item" id="ctx-edit">Edit Text</div>
-  <div class="ctx-item" id="ctx-split">Split at Playhead</div>
-  <div class="ctx-item" id="ctx-split-cursor">Split By Cursor</div>
-  <div class="ctx-item" id="ctx-merge-prev">Merge With Prev</div>
-  <div class="ctx-item" id="ctx-merge-next">Merge With Next</div>
-  <div class="ctx-item" id="ctx-duplicate">Duplicate</div>
-  <div class="ctx-item" id="ctx-add-line">Add New Line</div>
-  <div class="ctx-item" id="ctx-add-word">Add New Word</div>
-  <div class="ctx-item" id="ctx-move-playhead">Move to Playhead</div>
+  <div class="ctx-item" id="ctx-edit">✏ Edit Text</div>
+  <div class="ctx-item" id="ctx-split">✂ Split at Playhead</div>
+  <div class="ctx-item" id="ctx-split-cursor">✂ Split By Cursor</div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-zoom-selection">Zoom to Selection</div>
-  <div class="ctx-item" id="ctx-scroll-selection">Scroll to Selection</div>
+  <div class="ctx-item" id="ctx-merge-prev">⊲ Merge With Prev</div>
+  <div class="ctx-item" id="ctx-merge-next">Merge With Next ⊳</div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-delete">Delete</div>
+  <div class="ctx-item" id="ctx-duplicate">⧉ Duplicate</div>
+  <div class="ctx-item" id="ctx-add-line">+ Add New Line</div>
+  <div class="ctx-item" id="ctx-add-word">+ Add New Word</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-move-playhead">→ Move to Playhead</div>
+  <div class="ctx-item" id="ctx-zoom-selection">⊡ Zoom to Selection</div>
+  <div class="ctx-item" id="ctx-scroll-selection">↔ Scroll to Selection</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-delete">🗑 Delete</div>
 </div>
 
+<!-- Session restore modal -->
 <div id="restore-modal" class="modal hidden">
   <div class="modal-card">
     <h3>Найден черновик</h3>
@@ -160,38 +171,55 @@
   </div>
 </div>
 
+<!-- Hotkeys modal -->
 <div id="hotkeys-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
-    <h3>Горячие клавиши</h3>
-    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Можно очистить отдельную команду. Конфликты подсвечиваются.</p>
-    <div id="hotkeys-conflicts" class="muted" style="margin:0 0 10px 0"></div>
+    <h3>⌨ Горячие клавиши</h3>
+    <p>Нажми «Set», затем нажми нужную клавишу. «Clear» — очистить. Конфликты выделены оранжевым.</p>
+    <div id="hotkeys-conflicts" style="margin:0 0 8px 0;font-size:12px;color:#ff9800;min-height:16px"></div>
     <div id="hotkeys-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn" id="btn-hotkeys-reset">Reset Default</button>
-      <button class="btn pri" id="btn-hotkeys-save">Save</button>
-      <button class="btn" id="btn-hotkeys-close">Close</button>
+      <button class="btn pri" id="btn-hotkeys-save">Save & Close</button>
+      <button class="btn" id="btn-hotkeys-close">Cancel</button>
     </div>
   </div>
 </div>
 
+<!-- Validation modal -->
 <div id="validation-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
-    <h3>Validation / QA</h3>
+    <h3>✓ Validation / QA</h3>
     <p>Проверка таймингов, пересечений, конфликтов и структуры перед экспортом.</p>
     <div id="validation-list" class="hotkeys-list"></div>
     <div class="modal-actions">
+      <button class="btn" id="btn-validation-export">Export Active</button>
       <button class="btn pri" id="btn-validation-close">Close</button>
     </div>
   </div>
 </div>
 
+<!-- Help modal -->
 <div id="help-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
-    <h3>Hotkey Help / Legend</h3>
-    <p>Краткая справка по текущим командам и режимам редактора.</p>
+    <h3>? Hotkey Help / Legend</h3>
+    <p>Текущие горячие клавиши и краткое описание режимов редактора.</p>
     <div id="help-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn pri" id="btn-help-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Track rename modal -->
+<div id="rename-modal" class="modal hidden">
+  <div class="modal-card" style="width:320px">
+    <h3>Rename Track</h3>
+    <div class="igr"><label>Name</label><input id="rename-input" type="text" style="width:100%"></div>
+    <div class="igr"><label>Color</label><input id="rename-color" type="color" value="#1e88e5"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-rename-ok">OK</button>
+      <button class="btn" id="btn-rename-cancel">Cancel</button>
     </div>
   </div>
 </div>
