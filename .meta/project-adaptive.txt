@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-abeb4c00723fa10c41d03d397ef7b2eac776a07f.idx
-│   │       ├── pack-abeb4c00723fa10c41d03d397ef7b2eac776a07f.pack
-│   │       └── pack-abeb4c00723fa10c41d03d397ef7b2eac776a07f.rev
+│   │       ├── pack-b5d4ad337b5acd958b8fcaebe3caf279cf339fff.idx
+│   │       ├── pack-b5d4ad337b5acd958b8fcaebe3caf279cf339fff.pack
+│   │       └── pack-b5d4ad337b5acd958b8fcaebe3caf279cf339fff.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 19:41:13 UTC
+Сгенерировано: 2026-03-09 19:50:24 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -811,6 +811,13 @@ bind(){
 
   // Dirty warning
   window.addEventListener('beforeunload',e=>{if(this.dirty){e.preventDefault();e.returnValue=''}});
+
+  // Resize observer — перерисовываем ruler/grid при изменении размера окна
+  if(window.ResizeObserver){
+    new ResizeObserver(()=>this.renderRuler()).observe(this.ui.timelineContainer);
+  }else{
+    window.addEventListener('resize',()=>this.renderRuler());
+  }
 },
 
 /* ─── audio ──────────────────────────────────────────────────────── */
@@ -940,7 +947,7 @@ rulerStep(){
   if(pxPerSec>=12)return 5;
   return 10;
 },
-rulerTime(t){const m=Math.floor(t/60),s=(t%60).toFixed(1);return m+':'+(s<10?'0':'')+s},
+rulerTime(t){const m=Math.floor(t/60),s=(t%60).toFixed(1);return m+':'+(+s<10?'0':'')+s},
 
 /* ─── headers ────────────────────────────────────────────────────── */
 renderHeaders(){
@@ -1008,6 +1015,7 @@ applyRename(){
 
 /* ─── timeline render ────────────────────────────────────────────── */
 renderTimeline(){
+  this._conflictCache=new WeakMap();
   const c=this.ui.tracksContainer;c.innerHTML='';
   if(!this.project.tracks.length||!this.duration)return;
   const w=Math.ceil(this.duration*this.zoom);
@@ -1043,7 +1051,18 @@ renderTimeline(){
         const lh2=document.createElement('div');lh2.className='handle left';lh2.dataset.side='left';lh2.dataset.id=it.id;lh2.dataset.tid=tr.id;
         const rh=document.createElement('div');rh.className='handle right';rh.dataset.side='right';rh.dataset.id=it.id;rh.dataset.tid=tr.id;
         div.append(lh2,rh);
-        div.addEventListener('mousedown',e=>{if(!e.target.classList.contains('handle'))this.startItemDrag(e,tr.id,it.id)});
+        div.addEventListener('mousedown',e=>{
+          if(e.target.classList.contains('handle'))return;
+          e.stopPropagation();
+          if(!e.shiftKey&&!(this.selected.trackId===tr.id&&this.selected.ids.has(it.id))){
+            this.clearSelection();this.selectItem(tr.id,it.id);
+          }else if(e.shiftKey){this.selectItem(tr.id,it.id)}
+          const selSnap=[...this.selected.ids].map(sid=>{
+            const si=this.itemById(tr.id,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null;
+          }).filter(Boolean);
+          this.drag={active:true,type:'move',trackId:tr.id,itemId:it.id,startX:e.clientX,
+            initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value};
+        });
       }
       const label=document.createElement('span');label.textContent=it.text;label.style.pointerEvents='none';
       div.appendChild(label);
@@ -1065,9 +1084,16 @@ visibleItems(tr,layerM){
 },
 
 conflictClass(tr,it){
-  const others=tr.items.filter(x=>x.id!==it.id&&x.kind===it.kind);
-  const ov=others.some(x=>x.start<it.end&&x.end>it.start);
-  return ov?' conflict':'';
+  if(!this._conflictCache)this._conflictCache=new WeakMap();
+  if(!this._conflictCache.has(tr)){
+    const s=new Set();
+    ['line','word','char'].forEach(k=>{
+      const its=tr.items.filter(i=>i.kind===k).sort((a,b)=>a.start-b.start);
+      for(let i=1;i<its.length;i++)if(its[i].start<its[i-1].end-1e-6){s.add(its[i].id);s.add(its[i-1].id)}
+    });
+    this._conflictCache.set(tr,s);
+  }
+  return this._conflictCache.get(tr).has(it.id)?' conflict':'';
 },
 
 itemBg(it,tr,color){
@@ -1163,7 +1189,7 @@ handleTimelineMouseDown(e){
   }
 
   // Marquee
-  if(!item&&!handle&&e.target===this.ui.scrollArea||e.target===this.ui.tracksContainer||e.target.closest('.tracks')===this.ui.tracksContainer){
+  if(!item&&!handle&&(e.target===this.ui.scrollArea||e.target===this.ui.tracksContainer||e.target.closest('.tracks')===this.ui.tracksContainer)){
     this.marquee={active:true,startX:e.clientX,startY:e.clientY};
     this.ui.selectionBox.classList.remove('hidden');
   }
@@ -1218,8 +1244,7 @@ handleGlobalMouseMove(e){
         if(this.snapStep)newMid=Math.round(newMid/this.snapStep)*this.snapStep;
         rp.a.end=newMid;rp.b.start=newMid;
         // preserve total duration
-        const usedDur=rp.a.end-rp.a.start+(rp.b.end-rp.b.start);
-        if(Math.abs(usedDur-totalDur)>.001)rp.b.end=rp.a.start+totalDur-(rp.a.end-rp.a.start)+rp.b.start-rp.b.start;
+        rp.b.end=Math.max(rp.b.start+.02, rp.b.start+(totalDur-(rp.a.end-rp.a.start)));
       }else{
         let raw=this.drag.side==='left'?this.drag.initial.start+dx:this.drag.initial.end+dx;
         if(this.snapStep)raw=Math.round(raw/this.snapStep)*this.snapStep;
@@ -1433,7 +1458,7 @@ bindInspectorSingle(tr,it){
     this.markDirty();this.sortActiveTrack();this.renderTimeline();this.renderInspector();this.renderPreview();
   };
   ins('ins-apply').onclick=applyFn;
-  ['ins-start','ins-end','ins-text'].forEach(id=>{const el=ins(id);if(el){el.onkeydown=ev=>{if(ev.key==='Enter')applyFn()};el.onblur=applyFn}});
+  ['ins-start','ins-end','ins-text'].forEach(id=>{const el=ins(id);if(el){el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();applyFn()}}}});
   ins('ins-split')?.addEventListener('click',()=>this.splitAtPlayhead());
   ins('ins-merge-prev')?.addEventListener('click',()=>this.mergeSelectedWithPrev());
   ins('ins-merge-next')?.addEventListener('click',()=>this.mergeSelectedWithNext());
@@ -1464,9 +1489,6 @@ handleCharDragMove(e){
   const tr=this.trackById(trackId),it=this.itemById(trackId,itemId);
   if(!tr||!it||!it.chars)return;
   const ch=it.chars[charIdx];if(!ch)return;
-  const durPx=(it.end-it.start)*this.zoom;
-  const pct=(e.clientX-startX)/Math.max(1,durPx);
-  const dt=pct*(it.end-it.start);
   const tl=document.getElementById('chars-tl');if(!tl)return;
   const width=tl.offsetWidth||200;
   const dxPx=e.clientX-startX,dtBig=dxPx/width*(it.end-it.start);
@@ -2006,11 +2028,15 @@ buildSessionSnapshot(){
 },
 
 saveAutoDraft(key){
-  key=key||this.DRAFT_KEY;
   try{
     const snap=this.buildSessionSnapshot();
-    localStorage.setItem(key,JSON.stringify(snap));
-    this.addToRecent(key,snap);
+    const mainKey=this.DRAFT_KEY;
+    // rolling timestamped key для recent list (меняется каждые 5 минут)
+    if(!this._draftKey||Date.now()-this._draftKeyTs>300000){this._draftKey='keDraft_'+Date.now();this._draftKeyTs=Date.now()}
+    const rKey=key||this._draftKey;
+    localStorage.setItem(mainKey,JSON.stringify(snap));  // всегда для restore-on-launch
+    localStorage.setItem(rKey,JSON.stringify(snap));      // timestamped для recent list
+    this.addToRecent(rKey,snap);
     this.updateSaveStatus('Autosaved',false);
   }catch(e){console.warn('Autosave failed',e);this.updateSaveStatus('Autosave error',true)}
 },
@@ -2420,7 +2446,7 @@ runValidation(){
       if(it.kind===prevKind&&it.start<prevEnd-1e-4)out.push({sev:'warn',msg:`[${tr.name}] Перекрытие: "${it.text}" (${it.start.toFixed(3)}) до ${prevEnd.toFixed(3)}`});
       if(!it.text.trim())out.push({sev:'warn',msg:`[${tr.name}] Пустой текст у элемента ${it.id}`});
       if(it.kind===prevKind&&it.start>prevEnd+2)out.push({sev:'info',msg:`[${tr.name}] Большой разрыв перед "${it.text}" (${(it.start-prevEnd).toFixed(2)}s)`});
-      if(it.kind===it.kind){prevEnd=it.end;prevKind=it.kind}
+      prevEnd=it.end;prevKind=it.kind;
       if(it.kind==='word'&&tr.type==='words'){
         const line=tr.items.find(l=>l.kind==='line'&&l.id===it.lineId);
         if(!line)out.push({sev:'warn',msg:`[${tr.name}] Слово "${it.text}" не привязано к строке`});
