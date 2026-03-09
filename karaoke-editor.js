@@ -10,7 +10,7 @@ MAX_RECENT:10,
 
 /* ─── state ──────────────────────────────────────────────────────── */
 audioCtx:null,audioBuffer:null,audioElement:null,duration:0,audioFileName:'audio',
-zoom:80,verticalZoom:1,snapStep:0,autoScroll:true,volume:1,muted:false,dirty:false,
+zoom:80,verticalZoom:1,snapStep:0,autoScroll:true,volume:1,muted:false,dirty:false,playbackRate:1,
 autosaveEnabled:true,autosaveIntervalSec:10,autosaveTimer:null,
 project:{version:2,tracks:[],activeTrackId:null},
 selected:{trackId:null,ids:new Set()},
@@ -105,6 +105,11 @@ cache(){
     btnRenameOk:g('btn-rename-ok'),btnRenameCancel:g('btn-rename-cancel'),
     loopModal:g('loop-modal'),loopInVal:g('loop-in-val'),loopOutVal:g('loop-out-val'),
     btnLoopOk:g('btn-loop-ok'),btnLoopCancel:g('btn-loop-cancel'),
+    playbackRate:g('playback-rate'),
+    exportPreviewModal:g('export-preview-modal'),exportPreviewText:g('export-preview-text'),
+    btnExportPreviewCopy:g('btn-export-preview-copy'),btnExportPreviewDownload:g('btn-export-preview-download'),
+    btnExportPreviewClose:g('btn-export-preview-close'),
+    ctxDeleteTrack:g('ctx-delete-track'),
     loader:g('loader'),audioPlayer:g('audio-player')
   };
 },
@@ -170,6 +175,10 @@ initCommands(){
     addWord(){A.addNewWord()},
     validate(){A.openValidationModal()},
     help(){A.openHelpModal()},
+    navPrev(){A.navigateItem(-1)},
+    navNext(){A.navigateItem(1)},
+    deleteTrack(){A.deleteActiveTrack()},
+    exportPreview(){A.openExportPreview()},
     editText(){
       const it=A.itemById(A.context.trackId,A.context.itemId);if(!it)return;
       const t=prompt('Текст:',it.text);
@@ -267,12 +276,16 @@ bind(){
   this.ui.btnGotoSelection.onclick=()=>this.runCommand('gotoSelStart');
   this.ui.zoomSlider.oninput=e=>this.setZoom(+e.target.value,true);
   this.ui.vzoomSlider.oninput=e=>this.setVerticalZoom(+e.target.value/100);
-  this.ui.snapSelect.onchange=e=>{this.snapStep=+e.target.value};
+  this.ui.snapSelect.onchange=e=>{this.snapStep=e.target.value==='items'?'items':+e.target.value};
   this.ui.autoScroll.onchange=e=>{this.autoScroll=e.target.checked;this.persistUiPrefs()};
   this.ui.autosaveEnabled.onchange=e=>{this.autosaveEnabled=e.target.checked;this.persistUiPrefs()};
   this.ui.autosaveInterval.onchange=e=>{this.autosaveIntervalSec=+e.target.value;this.persistUiPrefs();this.restartAutosaveLoop()};
   this.ui.volumeSlider.oninput=e=>this.setVolume(+e.target.value/100);
   this.ui.btnMute.onclick=()=>this.toggleMute();
+  this.ui.playbackRate.onchange=e=>{this.playbackRate=+e.target.value;this.audioElement.playbackRate=this.playbackRate};
+  this.ui.btnExportPreviewClose.onclick=()=>this.ui.exportPreviewModal.classList.add('hidden');
+  this.ui.btnExportPreviewCopy.onclick=()=>{navigator.clipboard?.writeText(this.ui.exportPreviewText.value);this.ui.btnExportPreviewCopy.textContent='✓ Copied';setTimeout(()=>{this.ui.btnExportPreviewCopy.textContent='📋 Copy'},1500)};
+  this.ui.btnExportPreviewDownload.onclick=()=>{if(this._exportPreviewTrack)this.doExportTrack(this._exportPreviewTrack)};
 
   this.audioElement.addEventListener('timeupdate',()=>{
     this.syncPlayhead();this.handleLoopTick();
@@ -291,7 +304,7 @@ bind(){
   this.ui.scrollArea.addEventListener('contextmenu',e=>this.showContextMenu(e));
   document.addEventListener('click',e=>{
     if(!e.target.closest('#context-menu'))this.ui.contextMenu.classList.add('hidden');
-    ['hotkeysModal','validationModal','helpModal','renameModal','recentModal','loopModal'].forEach(m=>{
+    ['hotkeysModal','validationModal','helpModal','renameModal','recentModal','loopModal','exportPreviewModal'].forEach(m=>{
       if(e.target===this.ui[m])this.ui[m].classList.add('hidden');
     });
   });
@@ -561,6 +574,7 @@ rulerTime(t){const m=Math.floor(t/60),s=(t%60).toFixed(1);return m+':'+(+s<10?'0
 renderHeaders(){
   const c=this.ui.trackHeaders;c.innerHTML='';
   const wh=Math.round(80*this.verticalZoom),row=Math.round(56*this.verticalZoom);
+  const len=this.project.tracks.length;
   this.project.tracks.forEach((tr,i)=>{
     const top=wh+30+i*row;
     const div=document.createElement('div');
@@ -579,7 +593,12 @@ renderHeaders(){
     const bL=mkBtn('L',tr.locked?'locked':'','Lock',()=>this.toggleTrackProp(tr.id,'locked'));
     const bE=mkBtn('E',tr.id===this.project.activeTrackId?'on':'','Active',()=>this.setActiveTrack(tr.id));
     const bC=mkBtn(this.collapsed[tr.id]?'▶':'▼','col-btn','Collapse',()=>this.toggleCollapse(tr.id));
-    div.append(dot,nm,tp,bV,bMu,bS,bL,bE,bC);
+    const bUp=mkBtn('▲','',`Переместить вверх`,()=>this.reorderTrack(i,-1));
+    const bDn=mkBtn('▼','',`Переместить вниз`,()=>this.reorderTrack(i,1));
+    const bDel=mkBtn('✕','','Удалить дорожку',()=>this.deleteTrackById(tr.id));
+    if(i===0)bUp.disabled=true;
+    if(i===len-1)bDn.disabled=true;
+    div.append(dot,nm,tp,bV,bMu,bS,bL,bE,bC,bUp,bDn,bDel);
     c.appendChild(div);
   });
 },
@@ -614,6 +633,31 @@ applyRename(){
   tr.color=this.ui.renameColor.value;
   this.ui.renameModal.classList.add('hidden');
   this.markDirty();this.renderHeaders();
+},
+
+reorderTrack(idx,dir){
+  const t=this.project.tracks,ni=idx+dir;
+  if(ni<0||ni>=t.length)return;
+  this.pushHistory('Reorder Track');
+  [t[idx],t[ni]]=[t[ni],t[idx]];
+  this.markDirty();this.fullRender();
+},
+
+deleteTrackById(id){
+  const tr=this.trackById(id);if(!tr)return;
+  if(!confirm(`Удалить дорожку "${tr.name}" со всеми элементами?`))return;
+  this.pushHistory('Delete Track');
+  this.project.tracks=this.project.tracks.filter(t=>t.id!==id);
+  if(this.project.activeTrackId===id){
+    this.project.activeTrackId=this.project.tracks[0]?.id||null;
+  }
+  if(this.selected.trackId===id)this.clearSelection();
+  this.markDirty();this.fullRender();
+},
+
+deleteActiveTrack(){
+  const tr=this.activeTrack();
+  if(tr)this.deleteTrackById(tr.id);
 },
 
 /* ─── timeline render ────────────────────────────────────────────── */
@@ -964,13 +1008,35 @@ handleLoopDragMove(e){
   this.renderLoopRegion();
 },
 
+snapToItemEdges(value,tr,excludeIds){
+  if(!tr)return value;
+  const threshold=8/this.zoom; // 8px порог
+  let best=value,bestDist=threshold;
+  tr.items.forEach(it=>{
+    if(excludeIds&&excludeIds.has(it.id))return;
+    [it.start,it.end].forEach(edge=>{
+      const d=Math.abs(value-edge);
+      if(d<bestDist){bestDist=d;best=edge}
+    });
+  });
+  return best;
+},
+
 handleMainDragMove(e){
   const dx=(e.clientX-this.drag.startX)/this.zoom;
   const tr=this.trackById(this.drag.trackId);if(!tr)return;
   const mode=this.drag.mode||'free';
 
   if(this.drag.type==='move'){
-    let rawDelta=this.snapStep?Math.round(dx/this.snapStep)*this.snapStep:dx;
+    let rawDelta=dx;
+    if(this.snapStep==='items'){
+      const tr=this.trackById(this.drag.trackId);
+      const selIds=new Set(this.drag.sel.map(s=>s.item.id));
+      const ref=this.drag.sel[0];if(ref){
+        const snapped=this.snapToItemEdges(ref.origStart+dx,tr,selIds);
+        rawDelta=snapped-ref.origStart;
+      }
+    }else if(this.snapStep){rawDelta=Math.round(dx/this.snapStep)*this.snapStep}
     this.drag.sel.forEach(s=>{rawDelta=Math.max(rawDelta,-s.origStart)});
     if(mode==='free'){this.applyFreeMove(this.drag.sel,rawDelta)}
     else if(mode==='ripple'){this.applyRippleMove(tr,this.drag.sel,rawDelta)}
@@ -984,7 +1050,9 @@ handleMainDragMove(e){
       this.applyRollTrim(rp,dx,this.snapStep);
     }else{
       let raw=this.drag.side==='left'?this.drag.initial.start+dx:this.drag.initial.end+dx;
-      if(this.snapStep)raw=Math.round(raw/this.snapStep)*this.snapStep;
+      if(this.snapStep==='items'){
+        raw=this.snapToItemEdges(raw,tr,new Set([this.drag.itemId]));
+      }else if(this.snapStep){raw=Math.round(raw/this.snapStep)*this.snapStep}
       this.applyHandleTrim(tr,it,this.drag.side,raw,mode);
     }
   }
@@ -1515,7 +1583,8 @@ setupContext(){
     ctxZoomSelection:()=>{hide();this.runCommand('zoomSelection')},
     ctxScrollSelection:()=>{hide();this.runCommand('scrollSelection')},
     ctxDelete:()=>{hide();this.runCommand('deleteSelected')},
-    ctxSelTrack:()=>{hide();this.runCommand('selTrack')}
+    ctxSelTrack:()=>{hide();this.runCommand('selTrack')},
+    ctxDeleteTrack:()=>{hide();this.runCommand('deleteTrack')}
   };
   Object.entries(ctxMap).forEach(([key,fn])=>{
     if(this.ui[key])this.ui[key].onclick=fn;
@@ -1657,10 +1726,33 @@ renderPreview(){
 /* ─── export ─────────────────────────────────────────────────────── */
 exportTrack(tr){
   if(!tr){alert('Нет дорожки для экспорта');return}
+  this.openExportPreviewForTrack(tr);
+},
+
+openExportPreviewForTrack(tr){
+  try{
+    const normalized=this.normalizeTrackForExport(tr);
+    const json=this.serializeTrack(normalized);
+    const text=JSON.stringify(json,null,2);
+    this._exportPreviewTrack=tr;
+    this.ui.exportPreviewText.value=text;
+    this.ui.exportPreviewModal.classList.remove('hidden');
+  }catch(e){alert('Ошибка подготовки экспорта: '+e.message)}
+},
+
+openExportPreview(){
+  const tr=this.activeTrack();
+  if(!tr){alert('Нет активной дорожки');return}
+  this.openExportPreviewForTrack(tr);
+},
+
+doExportTrack(tr){
+  if(!tr)return;
   try{
     const normalized=this.normalizeTrackForExport(tr);
     const json=this.serializeTrack(normalized);
     this.downloadBlob(new Blob([JSON.stringify(json,null,2)],{type:'application/json'}),tr.name+'_export.json');
+    this.ui.exportPreviewModal.classList.add('hidden');
   }catch(e){alert('Ошибка экспорта: '+e.message)}
 },
 
@@ -1681,7 +1773,7 @@ serializeTrack(tr){
   });
 },
 
-exportAll(){this.project.tracks.forEach(tr=>this.exportTrack(tr))},
+exportAll(){this.project.tracks.forEach(tr=>this.doExportTrack(tr))},
 
 exportZip(){
   try{
@@ -1739,7 +1831,7 @@ buildSessionSnapshot(){
     autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,
     loop:this.loop,collapsed:{...this.collapsed},
     project:JSON.parse(JSON.stringify(this.project)),
-    playheadTime:this.audioElement.currentTime||0,keymap:{...this.keymap},
+    playheadTime:this.audioElement.currentTime||0,playbackRate:this.playbackRate,keymap:{...this.keymap},
     sidebarWidth:this.ui.sidebar.style.width,dragMode:this.ui.dragMode.value,
     layerMode:this.ui.layerMode.value,scrollLeft:this.ui.timelineContainer.scrollLeft,
     activeTrackId:this.project.activeTrackId
@@ -1795,6 +1887,8 @@ applySnapshot(snap){
   this.autosaveIntervalSec=snap.autosaveIntervalSec||10;
   this.loop=snap.loop||{enabled:false,start:null,end:null};
   this.collapsed=snap.collapsed||{};this.project=snap.project;
+  this.playbackRate=snap.playbackRate||1;this.audioElement.playbackRate=this.playbackRate;
+  this.ui.playbackRate.value=this.playbackRate;
   if(snap.keymap)this.keymap={...this.defaultKeymap(),...snap.keymap};
   if(snap.sidebarWidth)this.ui.sidebar.style.width=snap.sidebarWidth;
   if(snap.dragMode)this.ui.dragMode.value=snap.dragMode;
@@ -1933,7 +2027,11 @@ defaultKeymap(){
     'validate':{key:'Ctrl+Shift+V',desc:'Open validation panel',ru:'Открыть панель валидации'},
     'help':{key:'?',desc:'Open help',ru:'Открыть справку по клавишам'},
     'stretch_group_left':{key:'Ctrl+Alt+ArrowLeft',desc:'Stretch group left edge',ru:'Растянуть группу (левый край)'},
-    'stretch_group_right':{key:'Ctrl+Alt+ArrowRight',desc:'Stretch group right edge',ru:'Растянуть группу (правый край)'}
+    'stretch_group_right':{key:'Ctrl+Alt+ArrowRight',desc:'Stretch group right edge',ru:'Растянуть группу (правый край)'},
+    'nav_prev':{key:'ArrowUp',desc:'Previous item',ru:'Предыдущий элемент'},
+    'nav_next':{key:'ArrowDown',desc:'Next item',ru:'Следующий элемент'},
+    'export_preview':{key:'Ctrl+E',desc:'Export preview',ru:'Предпросмотр экспорта'},
+    'delete_track':{key:'Ctrl+Shift+Delete',desc:'Delete active track',ru:'Удалить активную дорожку'}
   };
 },
 
@@ -2051,7 +2149,9 @@ _hotkeyCommandMap(){
     solo_active:'soloActive',lock_active:'lockActive',
     loop_toggle:'loopToggle',add_line:'addLine',add_word:'addWord',
     validate:'validate',help:'help',
-    stretch_group_left:'stretchGroupLeft',stretch_group_right:'stretchGroupRight'
+    stretch_group_left:'stretchGroupLeft',stretch_group_right:'stretchGroupRight',
+    nav_prev:'navPrev',nav_next:'navNext',
+    export_preview:'exportPreview',delete_track:'deleteTrack'
   };
 },
 
@@ -2091,6 +2191,24 @@ stretchSelected(side,delta){
     else it.end=Math.max(it.start+.02,it.end+delta);
   });
   this.markDirty();this.afterEdit();
+},
+
+navigateItem(dir){
+  const tr=this.activeTrack();if(!tr)return;
+  const items=this.visibleItems(tr,this.ui.layerMode.value).sort((a,b)=>a.start-b.start);
+  if(!items.length)return;
+  let curIdx=-1;
+  if(this.selected.ids.size===1){
+    const curId=[...this.selected.ids][0];
+    curIdx=items.findIndex(i=>i.id===curId);
+  }
+  let ni=curIdx+dir;
+  if(ni<0)ni=items.length-1;
+  if(ni>=items.length)ni=0;
+  const target=items[ni];if(!target)return;
+  this.clearSelection();this.selectItem(tr.id,target.id);
+  this.audioElement.currentTime=target.start;this.syncPlayhead();
+  this.scrollToSelection();
 },
 
 switchActiveTrack(){
@@ -2265,7 +2383,7 @@ updateSaveStatus(msg,isDirty){
 },
 
 /* ─── ui prefs ───────────────────────────────────────────────────── */
-_uiPrefFields:['zoom','verticalZoom','autoScroll','volume','muted','autosaveEnabled','autosaveIntervalSec','snapStep'],
+_uiPrefFields:['zoom','verticalZoom','autoScroll','volume','muted','autosaveEnabled','autosaveIntervalSec','snapStep','playbackRate'],
 
 _syncUiToDOM(){
   this.ui.zoomSlider.value=this.zoom;
@@ -2273,7 +2391,8 @@ _syncUiToDOM(){
   this.ui.autoScroll.checked=this.autoScroll;
   this.ui.autosaveEnabled.checked=this.autosaveEnabled;
   this.ui.autosaveInterval.value=this.autosaveIntervalSec;
-  this.ui.snapSelect.value=this.snapStep;
+  this.ui.snapSelect.value=this.snapStep==='items'?'items':this.snapStep;
+  this.ui.playbackRate.value=this.playbackRate;this.audioElement.playbackRate=this.playbackRate;
   this.applyVol();this.updateVolumeReadout();this.updateZoomReadout();this.updateVZoomReadout();
 },
 
