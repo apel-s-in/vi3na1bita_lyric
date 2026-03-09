@@ -29,6 +29,7 @@
       <button class="btn" id="btn-recent">🕐 Drafts</button>
       <button class="btn" id="btn-hotkeys">⌨ Hotkeys</button>
       <button class="btn" id="btn-help">? Help</button>
+      <button class="btn" id="btn-vkbd">⌨ KBD</button>
     </div>
     <div class="grp">
       <button class="btn pri" id="btn-play">▶ Play</button>
@@ -269,6 +270,19 @@
     <div class="modal-actions">
       <button class="btn pri" id="btn-loop-ok">Set Loop</button>
       <button class="btn" id="btn-loop-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Virtual Keyboard modal -->
+<div id="vkbd-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card" style="max-width:780px">
+    <h3>⌨ Visual Keyboard Map</h3>
+    <p>Назначенные горячие клавиши на схеме клавиатуры. Нажми клавишу — увидишь команду.</p>
+    <div id="vkbd-display" style="font-family:Consolas,monospace;font-size:12px;line-height:1.8;background:#111317;border:1px solid #343844;border-radius:8px;padding:12px;overflow:auto;flex:1"></div>
+    <div id="vkbd-hint" style="margin-top:8px;font-size:12px;color:#ff9800;min-height:18px"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-vkbd-close">Close</button>
     </div>
   </div>
 </div>
