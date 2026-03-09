@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-a3432c3ab5948124c1eb5b6bccca93936561b978.idx
-│   │       ├── pack-a3432c3ab5948124c1eb5b6bccca93936561b978.pack
-│   │       └── pack-a3432c3ab5948124c1eb5b6bccca93936561b978.rev
+│   │       ├── pack-e0fb46cbb6f3ff48120414b6d3d8097f5aca1ba0.idx
+│   │       ├── pack-e0fb46cbb6f3ff48120414b6d3d8097f5aca1ba0.pack
+│   │       └── pack-e0fb46cbb6f3ff48120414b6d3d8097f5aca1ba0.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 20:28:48 UTC
+Сгенерировано: 2026-03-09 20:29:13 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -328,7 +328,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
       <input id="session-upload" type="file" accept=".kep,.json" hidden>
       <span class="sep"></span>
       <button class="btn" id="btn-validate">✓ Validate</button>
-      <button class="btn" id="btn-restore-session">⟳ Restore</button>
+      <button class="btn" id="btn-restore-session" title="Восстановить автосохранённый черновик">⟳ Restore</button>
       <button class="btn" id="btn-recent">🕐 Drafts</button>
       <button class="btn" id="btn-hotkeys">⌨ Hotkeys</button>
       <button class="btn" id="btn-help">? Help</button>
