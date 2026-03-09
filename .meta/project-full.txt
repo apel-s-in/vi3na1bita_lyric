@@ -60,185 +60,11 @@ vi3na1bita_lyric/
 │   │   │           └── main
 │   │   └── HEAD
 │   ├── objects/
-│   │   ├── 01/
-│   │   │   └── 502b13e19cf0e0a38e7168405fc4a28e65338e
-│   │   ├── 03/
-│   │   │   ├── 6d46f595f900b07fb2528924d1ce1e72f32311
-│   │   │   └── a0f933246e076f9917869a7e967c7464ba9e0d
-│   │   ├── 07/
-│   │   │   └── 12e2761a4a6213eb5d4f9cc680e6ea066e260c
-│   │   ├── 09/
-│   │   │   └── de1863709c7dd00eeb09587ed2c60898db7a02
-│   │   ├── 0a/
-│   │   │   └── a4fd078cbb8a293d46cd3a6eac4a1763093c04
-│   │   ├── 0d/
-│   │   │   └── bb4111e53a3671a09ccde8c5fc337b3f5a94cc
-│   │   ├── 0e/
-│   │   │   └── d9765b1ddee3ee4d3314bc951e4f0720466aad
-│   │   ├── 10/
-│   │   │   └── 0ae4bd3cfe468c7c484db5d0ba6c0371c90310
-│   │   ├── 12/
-│   │   │   ├── 184980e79780faaa932d9919901e18cf82cfeb
-│   │   │   └── 2b4ceac723952bf07d5d6c396f3b5f8d162b12
-│   │   ├── 14/
-│   │   │   └── 7751def38acab588dd4a6ae3ac5ca7c09ae95f
-│   │   ├── 18/
-│   │   │   ├── 8133ec07c63cf6b082e90aab55346c01014220
-│   │   │   └── 90c9b85aff10410df6173f369095351fdcb186
-│   │   ├── 1a/
-│   │   │   └── 2c3cf6c297dec3077bc80acb01eb00cfd59af6
-│   │   ├── 1d/
-│   │   │   └── 7927a45c96a97a4c086b89f1dff2be9d233fe9
-│   │   ├── 24/
-│   │   │   └── 53bbb56d29f0f8e2440943b5c66b76684c0d4c
-│   │   ├── 25/
-│   │   │   └── 528f2fd9d38859d05977907e8797958b1b9949
-│   │   ├── 26/
-│   │   │   └── 434d4e9d3af79f3e6c3650fb110693a83a8ef6
-│   │   ├── 2a/
-│   │   │   └── 51e5bedc07ae284c59e3f2fcbe837a89702d9c
-│   │   ├── 2b/
-│   │   │   └── ebf5f4fc4af1352d1f4c6c6b40e14060649774
-│   │   ├── 33/
-│   │   │   └── cc2c0bd8c1e05a1aa83f6492e5d643b4da166d
-│   │   ├── 3f/
-│   │   │   └── 57169714e6fa80f3b4ee2f5a55ccc74fc1ca39
-│   │   ├── 40/
-│   │   │   └── a3f1e3ae77dc2e5c48a7a0ee030fb6c7e6a8d2
-│   │   ├── 41/
-│   │   │   └── cfa4c7b328564afb67bebc27b197957dc4fc50
-│   │   ├── 42/
-│   │   │   └── 363de19cde505bf21240122a2c45de9ec9e541
-│   │   ├── 44/
-│   │   │   └── 70d1f46a019fcf534ada4b803f7080e9cf7e67
-│   │   ├── 47/
-│   │   │   └── 02289a0102190c7dab9e77edd1558b823c6c97
-│   │   ├── 48/
-│   │   │   └── f3d979edae456d88336968ef3ac0a2f8ca40d9
-│   │   ├── 4a/
-│   │   │   ├── 258a7d5b6990017a962b1894a12da8ae16206f
-│   │   │   └── 8448d7459dc341dd7fdb836afc73acceca01c8
-│   │   ├── 4c/
-│   │   │   └── 608cf9e4115757b8ee11fea74e095b8f1a4c1c
-│   │   ├── 4f/
-│   │   │   └── 7fbb2e76928aac3767bb6a2fabbdb5056d4198
-│   │   ├── 52/
-│   │   │   └── edd74dccb02d61900f3f3a6f8a71c2749b04b2
-│   │   ├── 54/
-│   │   │   └── 20ac903a632bf7e20a4f77887d9cdec3e7d1a9
-│   │   ├── 55/
-│   │   │   ├── 84801396416c22051fda28c0dbb533f4de62c5
-│   │   │   └── b65e7ec9422db1c57efc2e9f1eaabc47750433
-│   │   ├── 56/
-│   │   │   └── c0636c1c26131c0e3ee4a15f321e461a5e9c65
-│   │   ├── 58/
-│   │   │   ├── 7d475f2e684cadc02cdee1542fbefbb1175928
-│   │   │   └── cf869efbccbf89de2fd1e496314220530e52be
-│   │   ├── 5a/
-│   │   │   ├── 4fd5275380f06a84f2bdabd66251dd3257f554
-│   │   │   └── 798f40fd974fb256e65855e2c361b4225c0f19
-│   │   ├── 5e/
-│   │   │   └── 4d559a1bdfedcc4e333e937e2c9d3cded2d3ae
-│   │   ├── 5f/
-│   │   │   └── 71150287830c223cc59e5bbe914aefd63cc17c
-│   │   ├── 61/
-│   │   │   ├── 57f90ec1b0f24f74c5e69eebb55a2813503867
-│   │   │   └── d712c8b2ad3e6822cb19ef83858ea048fc4a89
-│   │   ├── 65/
-│   │   │   ├── 0c596e73c4e01572ae5eb1768e30a3b3d15bb9
-│   │   │   └── ba246991901dcb9b23900527d672f7b5ebc7bc
-│   │   ├── 67/
-│   │   │   └── be39212809f2382e5647bce78c14459f1641d0
-│   │   ├── 68/
-│   │   │   ├── 1676e1a6adafa5dd8a86c2536823831fc0abc5
-│   │   │   └── 3396f390878fbdefaebb957c5e4c9a4bd60b9d
-│   │   ├── 71/
-│   │   │   ├── 732c6af54a7e2b6f1f5dffcb7d30a88fdf93d8
-│   │   │   └── fe2c96a1128f76de46c56aa97b29e382056186
-│   │   ├── 74/
-│   │   │   └── 5dde0d626ab89326bd8809c16d2091de5caa0e
-│   │   ├── 79/
-│   │   │   └── 93643e0ba6c52a8d99e0470f3fce523e9ae925
-│   │   ├── 7a/
-│   │   │   └── eab5ee345329311cbf638debdb85f79a7f231f
-│   │   ├── 7d/
-│   │   │   └── d0e1c9dda0ac791e027049e79b739e1400dcbc
-│   │   ├── 7e/
-│   │   │   ├── 65b664ba745607ef4c6281bcac328fecb98267
-│   │   │   └── 6f2b444c4771f24a9640cb7e742ae63a2c1b34
-│   │   ├── 83/
-│   │   │   └── 2e308bbaaa69535c6601bd2a6979be922a88f7
-│   │   ├── 86/
-│   │   │   ├── 44e5658d284e195e509804bfec27cb95a1053e
-│   │   │   └── 52c50cb6475a643cd713a5927c5a81ca49d6aa
-│   │   ├── 8b/
-│   │   │   └── a5d3f8d3b902d871e683659b3e07e863e365d7
-│   │   ├── 8c/
-│   │   │   └── 1d05996de6c44660ad232f53ab0fd4171e1869
-│   │   ├── 8e/
-│   │   │   └── 9fa12fa7c761a989b742b1402c51ba5ac512b7
-│   │   ├── 90/
-│   │   │   ├── 8415af662e5c4a38e45cadcc89245353d306c4
-│   │   │   └── 948a08ce6cf8f5b8bef6bde63cad67f4a3ae77
-│   │   ├── 92/
-│   │   │   └── ed0ccb986f4f65da7f7c60cf707407db68579b
-│   │   ├── 94/
-│   │   │   ├── 03f3df2e4aae849c56e4e68f5538ab8d56794a
-│   │   │   ├── 99a28dc5d55aa3568ab1359e5902fb192621c6
-│   │   │   └── ccde770b153c26b8b8487ab7095d6df3e33071
-│   │   ├── 99/
-│   │   │   ├── 9f5b0402fa4d657438b89d5bb10412efcef490
-│   │   │   └── f3a2cffbaa153984690408489585b70f05c2be
-│   │   ├── 9d/
-│   │   │   └── 0ceec21d687686e7598d13b99768d74a229d89
-│   │   ├── a4/
-│   │   │   └── bce7ebf9f57b918eb8cff46b74bf868cf0beca
-│   │   ├── a5/
-│   │   │   └── f41f6db592c87b99f1115a49a591991a7be3f6
-│   │   ├── aa/
-│   │   │   └── c42fef5e995511fdd9e9bcb3ae30817972e05d
-│   │   ├── ab/
-│   │   │   └── 36699a48029f2ffa1bf788051e0834c8f80343
-│   │   ├── b1/
-│   │   │   └── 50de6adeffc070f538817b7a392986d7d23985
-│   │   ├── b3/
-│   │   │   └── 08eb0773780cf7587f7eec71d282dbb512c05b
-│   │   ├── b4/
-│   │   │   └── 5d206d1b108c6e7641e9a0695e5767efd7cb4a
-│   │   ├── bb/
-│   │   │   └── 1af213af77b6df332125857a17c94119b0e93a
-│   │   ├── bd/
-│   │   │   └── 1588fd18277d790238d96f31ccbaeb4909bed1
-│   │   ├── c9/
-│   │   │   └── 4da599aba1c110273d4d656e1b2ac73037fd6e
-│   │   ├── ca/
-│   │   │   └── 84de1d477e7e9d49116b27056e86f59c23acc6
-│   │   ├── d0/
-│   │   │   └── 0491fd7e5bb6fa28c517a0bb32b8b506539d4d
-│   │   ├── d3/
-│   │   │   └── 97785da31dbb6fe3bacdd12d9042a96e1fe507
-│   │   ├── d5/
-│   │   │   └── caa9d2cc28ca9ac6cf8446a0000600e43a0f8d
-│   │   ├── de/
-│   │   │   └── 1af87d17dd3c37714fa02b344cf680a0ec43e7
-│   │   ├── ea/
-│   │   │   └── 2223ec4ffca331c83170396801b02c7ef8aa0d
-│   │   ├── eb/
-│   │   │   └── e569cbcceac6ad11a32c3d9cb9a9191d3137ed
-│   │   ├── f0/
-│   │   │   └── 0bf972b44d93e79d1fda8e716f76bc33ce9ab2
-│   │   ├── f2/
-│   │   │   └── 005e98c8bf0a1e4db01d8e51d93a8cfd8461a8
-│   │   ├── f5/
-│   │   │   └── 81522c735019a67c3034a9e83d66f8567c23d7
-│   │   ├── f6/
-│   │   │   └── 6939449aa94b03ddcf90077b6d99aa52a07aa6
-│   │   ├── f7/
-│   │   │   └── 97ce97ab08f9d3f4fdfe8da23c19b485230d67
-│   │   ├── fb/
-│   │   │   └── 222e72162f89e3981caaeb0fc2bd3e827edaf8
 │   │   ├── info/
 │   │   └── pack/
+│   │       ├── pack-27e7753c35b1d065499c62464f10e37f45c87d88.idx
+│   │       ├── pack-27e7753c35b1d065499c62464f10e37f45c87d88.pack
+│   │       └── pack-27e7753c35b1d065499c62464f10e37f45c87d88.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -263,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 18:47:52 UTC
+Сгенерировано: 2026-03-09 19:07:34 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -399,38 +225,54 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
 <header class="toolbar">
   <div class="row">
     <div class="grp">
-      <label class="btn">Load Audio<input id="audio-upload" type="file" accept="audio/*" hidden></label>
-      <label class="btn">Load Line JSON<input id="line-upload" type="file" accept=".json,application/json" hidden></label>
-      <label class="btn">Load Words JSON<input id="words-upload" type="file" accept=".json,application/json" hidden></label>
-      <button class="btn pri" id="btn-export-active">Export Active</button>
+      <label class="btn">📂 Audio<input id="audio-upload" type="file" accept="audio/*" hidden></label>
+      <label class="btn">📄 Line JSON<input id="line-upload" type="file" accept=".json,application/json" hidden></label>
+      <label class="btn">📝 Words JSON<input id="words-upload" type="file" accept=".json,application/json" hidden></label>
+      <span class="sep"></span>
+      <button class="btn pri" id="btn-export-active">⬇ Export Active</button>
       <button class="btn" id="btn-export-line">Export Line</button>
       <button class="btn" id="btn-export-words">Export Words</button>
       <button class="btn" id="btn-export-all">Export All</button>
-      <button class="btn" id="btn-validate">Validate</button>
-      <button class="btn" id="btn-restore-session">Restore Draft</button>
-      <button class="btn" id="btn-hotkeys">Hotkeys</button>
-      <button class="btn" id="btn-help">Help</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-validate">✓ Validate</button>
+      <button class="btn" id="btn-restore-session">⟳ Restore</button>
+      <button class="btn" id="btn-hotkeys">⌨ Hotkeys</button>
+      <button class="btn" id="btn-help">? Help</button>
     </div>
     <div class="grp">
-      <button class="btn" id="btn-play">Play/Pause</button>
-      <button class="btn" id="btn-stop">Stop</button>
-      <button class="btn" id="btn-center-playhead">Center</button>
-      <button class="btn" id="btn-loop">Loop Sel</button>
+      <button class="btn pri" id="btn-play">▶ Play</button>
+      <button class="btn" id="btn-stop">■ Stop</button>
+      <button class="btn" id="btn-loop">⇄ Loop</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-mute">🔊</button>
+      <input id="volume-slider" type="range" min="0" max="100" value="100" style="width:70px">
+      <span class="ro" id="volume-readout">100%</span>
+      <span class="sep"></span>
       <span class="time" id="time-display">0:00.00 / 0:00.00</span>
     </div>
     <div class="grp">
       <span class="badge" id="mode-indicator">TRACKS: 0</span>
       <span class="save-status" id="save-status">Saved</span>
-      <button class="btn" id="btn-undo">Undo</button>
-      <button class="btn" id="btn-redo">Redo</button>
+      <button class="btn" id="btn-undo">↩ Undo</button>
+      <button class="btn" id="btn-redo">↪ Redo</button>
     </div>
   </div>
 
   <div class="row row2">
     <div class="grp">
-      <span>Z:</span><input id="zoom-slider" type="range" min="10" max="320" value="80"><span class="ro" id="zoom-readout">80 px/s</span>
+      <span>Z:</span>
+      <input id="zoom-slider" type="range" min="10" max="320" value="80" style="width:80px">
+      <span class="ro" id="zoom-readout">80 px/s</span>
       <span class="sep"></span>
-      <span>V:</span><input id="vzoom-slider" type="range" min="70" max="220" value="100"><span class="ro" id="vzoom-readout">100%</span>
+      <span>V:</span>
+      <input id="vzoom-slider" type="range" min="70" max="220" value="100" style="width:60px">
+      <span class="ro" id="vzoom-readout">100%</span>
+      <span class="sep"></span>
+      <button class="btn" id="btn-center-playhead">◎</button>
+      <button class="btn" id="btn-fit-song">Fit</button>
+      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
+      <button class="btn" id="btn-scroll-selection">→Sel</button>
+      <button class="btn" id="btn-goto-selection">Go Sel</button>
       <span class="sep"></span>
       <span>Snap:</span>
       <select id="snap-select">
@@ -444,41 +286,34 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
       <span>Trim:</span>
       <select id="drag-mode">
         <option value="free">Free</option>
-        <option value="keep">Keep Order</option>
+        <option value="keep">No-Overlap</option>
         <option value="roll">Roll Trim</option>
-        <option value="ripple">Ripple Trim</option>
+        <option value="ripple">Ripple</option>
       </select>
       <span class="sep"></span>
       <span>Layer:</span>
       <select id="layer-mode">
         <option value="auto">Auto</option>
-        <option value="line">Lines</option>
-        <option value="word">Words</option>
+        <option value="line">Lines only</option>
+        <option value="word">Words only</option>
         <option value="char">Chars</option>
       </select>
-      <span class="sep"></span>
-      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
-      <button class="btn" id="btn-fit-song">Fit Song</button>
-      <button class="btn" id="btn-scroll-selection">Scroll Sel</button>
-      <button class="btn" id="btn-goto-selection">Go To Sel</button>
     </div>
 
     <div class="grp">
-      <button class="btn" id="btn-select-all">Select All</button>
-      <button class="btn" id="btn-deselect">Deselect</button>
-      <button class="btn" id="btn-split">Split at Playhead</button>
-      <button class="btn" id="btn-merge-prev">Merge Prev</button>
-      <button class="btn" id="btn-merge">Merge Next</button>
-      <button class="btn" id="btn-duplicate">Duplicate</button>
-      <button class="btn" id="btn-add-line">Add Line</button>
-      <button class="btn" id="btn-add-word">Add Word</button>
-      <button class="btn" id="btn-delete">Delete</button>
+      <button class="btn" id="btn-select-all">Sel All</button>
+      <button class="btn" id="btn-deselect">Desel</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-split">✂ Split</button>
+      <button class="btn" id="btn-merge-prev">⊲ Mrg Prev</button>
+      <button class="btn" id="btn-merge">Mrg Next ⊳</button>
+      <button class="btn" id="btn-duplicate">⧉ Dup</button>
+      <button class="btn" id="btn-add-line">+ Line</button>
+      <button class="btn" id="btn-add-word">+ Word</button>
+      <button class="btn" id="btn-delete">🗑 Del</button>
     </div>
 
     <div class="grp">
-      <button class="btn" id="btn-mute">Mute</button>
-      <span>Vol:</span><input id="volume-slider" type="range" min="0" max="100" value="100"><span class="ro" id="volume-readout">100%</span>
-      <span class="sep"></span>
       <label class="ck"><input id="auto-scroll" type="checkbox" checked>Auto-Scroll</label>
       <label class="ck"><input id="autosave-enabled" type="checkbox" checked>Autosave</label>
       <select id="autosave-interval">
@@ -496,10 +331,8 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
       <canvas id="ruler-canvas"></canvas>
       <canvas id="grid-canvas"></canvas>
       <canvas id="waveform-canvas"></canvas>
-
       <div class="playhead" id="playhead"><div class="playhead-handle" id="playhead-handle"></div></div>
       <div id="selection-box" class="selbox hidden"></div>
-
       <div class="track-headers" id="track-headers"></div>
       <div id="tracks-container" class="tracks"></div>
     </div>
@@ -520,23 +353,27 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
   </aside>
 </main>
 
+<!-- Context Menu -->
 <div id="context-menu" class="ctx hidden">
-  <div class="ctx-item" id="ctx-edit">Edit Text</div>
-  <div class="ctx-item" id="ctx-split">Split at Playhead</div>
-  <div class="ctx-item" id="ctx-split-cursor">Split By Cursor</div>
-  <div class="ctx-item" id="ctx-merge-prev">Merge With Prev</div>
-  <div class="ctx-item" id="ctx-merge-next">Merge With Next</div>
-  <div class="ctx-item" id="ctx-duplicate">Duplicate</div>
-  <div class="ctx-item" id="ctx-add-line">Add New Line</div>
-  <div class="ctx-item" id="ctx-add-word">Add New Word</div>
-  <div class="ctx-item" id="ctx-move-playhead">Move to Playhead</div>
+  <div class="ctx-item" id="ctx-edit">✏ Edit Text</div>
+  <div class="ctx-item" id="ctx-split">✂ Split at Playhead</div>
+  <div class="ctx-item" id="ctx-split-cursor">✂ Split By Cursor</div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-zoom-selection">Zoom to Selection</div>
-  <div class="ctx-item" id="ctx-scroll-selection">Scroll to Selection</div>
+  <div class="ctx-item" id="ctx-merge-prev">⊲ Merge With Prev</div>
+  <div class="ctx-item" id="ctx-merge-next">Merge With Next ⊳</div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-delete">Delete</div>
+  <div class="ctx-item" id="ctx-duplicate">⧉ Duplicate</div>
+  <div class="ctx-item" id="ctx-add-line">+ Add New Line</div>
+  <div class="ctx-item" id="ctx-add-word">+ Add New Word</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-move-playhead">→ Move to Playhead</div>
+  <div class="ctx-item" id="ctx-zoom-selection">⊡ Zoom to Selection</div>
+  <div class="ctx-item" id="ctx-scroll-selection">↔ Scroll to Selection</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-delete">🗑 Delete</div>
 </div>
 
+<!-- Session restore modal -->
 <div id="restore-modal" class="modal hidden">
   <div class="modal-card">
     <h3>Найден черновик</h3>
@@ -549,38 +386,55 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
   </div>
 </div>
 
+<!-- Hotkeys modal -->
 <div id="hotkeys-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
-    <h3>Горячие клавиши</h3>
-    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Можно очистить отдельную команду. Конфликты подсвечиваются.</p>
-    <div id="hotkeys-conflicts" class="muted" style="margin:0 0 10px 0"></div>
+    <h3>⌨ Горячие клавиши</h3>
+    <p>Нажми «Set», затем нажми нужную клавишу. «Clear» — очистить. Конфликты выделены оранжевым.</p>
+    <div id="hotkeys-conflicts" style="margin:0 0 8px 0;font-size:12px;color:#ff9800;min-height:16px"></div>
     <div id="hotkeys-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn" id="btn-hotkeys-reset">Reset Default</button>
-      <button class="btn pri" id="btn-hotkeys-save">Save</button>
-      <button class="btn" id="btn-hotkeys-close">Close</button>
+      <button class="btn pri" id="btn-hotkeys-save">Save & Close</button>
+      <button class="btn" id="btn-hotkeys-close">Cancel</button>
     </div>
   </div>
 </div>
 
+<!-- Validation modal -->
 <div id="validation-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
-    <h3>Validation / QA</h3>
+    <h3>✓ Validation / QA</h3>
     <p>Проверка таймингов, пересечений, конфликтов и структуры перед экспортом.</p>
     <div id="validation-list" class="hotkeys-list"></div>
     <div class="modal-actions">
+      <button class="btn" id="btn-validation-export">Export Active</button>
       <button class="btn pri" id="btn-validation-close">Close</button>
     </div>
   </div>
 </div>
 
+<!-- Help modal -->
 <div id="help-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
-    <h3>Hotkey Help / Legend</h3>
-    <p>Краткая справка по текущим командам и режимам редактора.</p>
+    <h3>? Hotkey Help / Legend</h3>
+    <p>Текущие горячие клавиши и краткое описание режимов редактора.</p>
     <div id="help-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn pri" id="btn-help-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Track rename modal -->
+<div id="rename-modal" class="modal hidden">
+  <div class="modal-card" style="width:320px">
+    <h3>Rename Track</h3>
+    <div class="igr"><label>Name</label><input id="rename-input" type="text" style="width:100%"></div>
+    <div class="igr"><label>Color</label><input id="rename-color" type="color" value="#1e88e5"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-rename-ok">OK</button>
+      <button class="btn" id="btn-rename-cancel">Cancel</button>
     </div>
   </div>
 </div>
