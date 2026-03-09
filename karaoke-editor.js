@@ -1055,13 +1055,6 @@ finalizeMarquee(){
   this.renderTimeline();this.renderInspector();
 },
 
-rippleRight(tr,anchor,newEnd){
-  const initEnd=this.drag?.initial?.end;if(initEnd===undefined)return;
-  const delta=newEnd-initEnd;if(Math.abs(delta)<1e-6)return;
-  tr.items.filter(i=>i.kind===anchor.kind&&i.start>=anchor.end-1e-9&&i.id!==anchor.id)
-    .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
-},
-
 resolveNoOverlap(){
   const mode=this.ui.dragMode.value;if(mode==='free')return;
   const tr=this.activeTrack();if(!tr)return;
@@ -1608,9 +1601,14 @@ renderPreview(){
   const source=lineTr||wordsTr;
   if(!source){this.ui.lyricsContainer.innerHTML='<p class="muted">Нет данных</p>';return}
 
-  const wordsForLine=(wTr,line)=>wTr.items.filter(i=>i.kind==='word'&&(
-    i.lineId===line.id||(!i.lineId&&i.start>=line.start-.01&&i.end<=line.end+.1)
-  )).sort((a,b)=>a.start-b.start);
+  const wordsForLine=(wTr,line)=>{
+    // Exact lineId match (same track)
+    const byId=wTr.items.filter(i=>i.kind==='word'&&i.lineId===line.id);
+    if(byId.length)return byId.sort((a,b)=>a.start-b.start);
+    // Time-overlap fallback (cross-track or orphan words)
+    return wTr.items.filter(i=>i.kind==='word'&&i.start>=line.start-.05&&i.end<=line.end+.15)
+      .sort((a,b)=>a.start-b.start);
+  };
 
   let html='';
   if(source===wordsTr&&!lineTr){
@@ -1933,7 +1931,9 @@ defaultKeymap(){
     'add_line':{key:'Ctrl+Shift+L',desc:'Add new line at playhead',ru:'Добавить новую строку'},
     'add_word':{key:'Ctrl+Shift+W',desc:'Add new word at playhead',ru:'Добавить новое слово'},
     'validate':{key:'Ctrl+Shift+V',desc:'Open validation panel',ru:'Открыть панель валидации'},
-    'help':{key:'?',desc:'Open help',ru:'Открыть справку по клавишам'}
+    'help':{key:'?',desc:'Open help',ru:'Открыть справку по клавишам'},
+    'stretch_group_left':{key:'Ctrl+Alt+ArrowLeft',desc:'Stretch group left edge',ru:'Растянуть группу (левый край)'},
+    'stretch_group_right':{key:'Ctrl+Alt+ArrowRight',desc:'Stretch group right edge',ru:'Растянуть группу (правый край)'}
   };
 },
 
@@ -2050,7 +2050,8 @@ _hotkeyCommandMap(){
     toggle_line_vis:'toggleLineVis',toggle_words_vis:'toggleWordsVis',
     solo_active:'soloActive',lock_active:'lockActive',
     loop_toggle:'loopToggle',add_line:'addLine',add_word:'addWord',
-    validate:'validate',help:'help'
+    validate:'validate',help:'help',
+    stretch_group_left:'stretchGroupLeft',stretch_group_right:'stretchGroupRight'
   };
 },
 
@@ -2122,7 +2123,9 @@ runValidation(){
       prevEnd=it.end;prevKind=it.kind;
       if(it.kind==='word'&&tr.type==='words'){
         const line=tr.items.find(l=>l.kind==='line'&&l.id===it.lineId);
-        if(!line)out.push({sev:'warn',msg:`[${tr.name}] Слово "${it.text}" не привязано к строке`});
+        if(!line){
+          out.push({sev:'warn',msg:`[${tr.name}] Слово "${it.text}" не привязано к строке${it.lineId?' (orphan lineId: '+it.lineId+')':''}`});
+        }
         else{
           if(it.start<line.start-.01)out.push({sev:'err',msg:`[${tr.name}] Слово "${it.text}" начинается раньше строки`});
           if(it.end>line.end+.01)out.push({sev:'err',msg:`[${tr.name}] Слово "${it.text}" заканчивается позже строки`});
