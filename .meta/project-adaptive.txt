@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-a4202486439fe14e85c346cf169bda589ecae827.idx
-│   │       ├── pack-a4202486439fe14e85c346cf169bda589ecae827.pack
-│   │       └── pack-a4202486439fe14e85c346cf169bda589ecae827.rev
+│   │       ├── pack-8452b1dc12b27a646c02dff55f63905b74258f4c.idx
+│   │       ├── pack-8452b1dc12b27a646c02dff55f63905b74258f4c.pack
+│   │       └── pack-8452b1dc12b27a646c02dff55f63905b74258f4c.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 22:10:39 UTC
+Сгенерировано: 2026-03-09 22:11:56 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -643,6 +643,7 @@ KM_KEY:'karaokeEditorKeymapV3',
 RECENT_KEY:'karaokeEditorRecentV1',
 MAX_HISTORY:80,
 MAX_RECENT:10,
+MIN_DUR:.02,
 
 /* ─── state ──────────────────────────────────────────────────────── */
 audioCtx:null,audioBuffer:null,audioElement:null,duration:0,audioFileName:'audio',
@@ -663,6 +664,7 @@ keymap:{},
 collapsed:{},
 ui:{},
 commands:{},
+_dragModeBadge:null,
 
 /* ─── boot ───────────────────────────────────────────────────────── */
 init(){
@@ -760,7 +762,6 @@ applyTrackEdit(tr,label,fn){
   this.afterEdit();
 },
 
-/* helper: re-render after any editing op */
 afterEdit(){this.renderTimeline();this.renderInspector();this.renderPreview()},
 
 /* ─── command layer ──────────────────────────────────────────────── */
@@ -1045,7 +1046,7 @@ normalizeTrack(raw,forceType,name){
 /* ─── normalization helpers ──────────────────────────────────────── */
 stableClampItem(item){
   item.start=Math.max(0,item.start);
-  if(item.end<=item.start)item.end=item.start+.02;
+  if(item.end<=item.start)item.end=item.start+this.MIN_DUR;
 },
 
 enforceNoOverlapForKind(tr,kind){
@@ -1093,25 +1094,288 @@ getSelectionBounds(){
   return{items,minStart:Math.min(...items.map(i=>i.start)),maxEnd:Math.max(...items.map(i=>i.end)),tr};
 },
 
+/* ─── TRIM ENGINE v2: neighbor discovery ─────────────────────────── */
+
+/** Get sorted items of specific kind from track */
+getOrderedKindItems(tr,kind){
+  return tr.items.filter(i=>i.kind===kind).sort((a,b)=>a.start-b.start);
+},
+
+/** Get previous neighbor of same kind, optionally excluding a set of ids */
+getPrevNeighbor(tr,it,excludeSet){
+  const same=this.getOrderedKindItems(tr,it.kind);
+  for(let i=same.length-1;i>=0;i--){
+    if(same[i].id===it.id)continue;
+    if(excludeSet&&excludeSet.has(same[i].id))continue;
+    if(same[i].end<=it.start+1e-9)return same[i];
+  }
+  return null;
+},
+
+/** Get next neighbor of same kind, optionally excluding a set of ids */
+getNextNeighbor(tr,it,excludeSet){
+  const same=this.getOrderedKindItems(tr,it.kind);
+  for(let i=0;i<same.length;i++){
+    if(same[i].id===it.id)continue;
+    if(excludeSet&&excludeSet.has(same[i].id))continue;
+    if(same[i].start>=it.end-1e-9)return same[i];
+  }
+  return null;
+},
+
+/** Get all non-selected items of a kind, sorted */
+getOuterItems(tr,kind,selIds){
+  return tr.items.filter(i=>i.kind===kind&&!selIds.has(i.id)).sort((a,b)=>a.start-b.start);
+},
+
+/** Find the closest left boundary for a group moving right (no-overlap) */
+computeGroupMoveLimit(tr,sel,rawDelta){
+  const selIds=new Set(sel.map(s=>s.item.id));
+  let d=rawDelta;
+  // Group by kind
+  const byKind={};
+  sel.forEach(s=>{const k=s.item.kind;(byKind[k]=byKind[k]||[]).push(s)});
+  Object.entries(byKind).forEach(([kind,grp])=>{
+    const others=this.getOuterItems(tr,kind,selIds);
+    if(!others.length)return;
+    // Selection bounds for this kind
+    const grpMinOrig=Math.min(...grp.map(s=>s.origStart));
+    const grpMaxOrig=Math.max(...grp.map(s=>s.origEnd));
+    if(d>0){
+      // Find first outer item whose start >= grpMaxOrig (right neighbor of group)
+      for(const o of others){
+        if(o.start>=grpMaxOrig-1e-9){
+          // Max allowed delta: o.start - grpMaxOrig
+          d=Math.min(d,o.start-grpMaxOrig);
+          break;
+        }
+      }
+    }else if(d<0){
+      // Find last outer item whose end <= grpMinOrig (left neighbor of group)
+      for(let j=others.length-1;j>=0;j--){
+        if(others[j].end<=grpMinOrig+1e-9){
+          // Max allowed delta: others[j].end - grpMinOrig (negative)
+          d=Math.max(d,others[j].end-grpMinOrig);
+          break;
+        }
+      }
+    }
+  });
+  return Math.max(d,-Math.min(...sel.map(s=>s.origStart)));
+},
+
+/* ─── TRIM ENGINE v2: move operations ────────────────────────────── */
+
+/** FREE: move with no constraints except start >= 0 */
+applyFreeMove(sel,rawDelta){
+  sel.forEach(s=>{
+    s.item.start=Math.max(0,s.origStart+rawDelta);
+    s.item.end=s.item.start+(s.origEnd-s.origStart);
+  });
+},
+
+/** NO-OVERLAP: compute allowed delta first, then apply */
+applyNoOverlapMove(tr,sel,rawDelta){
+  const d=this.computeGroupMoveLimit(tr,sel,rawDelta);
+  sel.forEach(s=>{
+    s.item.start=Math.max(0,s.origStart+d);
+    s.item.end=s.item.start+(s.origEnd-s.origStart);
+  });
+  this._dragClamped=Math.abs(d-rawDelta)>1e-6;
+},
+
+/** RIPPLE: move selection, then chain-push affected neighbors */
+applyRippleMove(tr,sel,rawDelta){
+  const selIds=new Set(sel.map(s=>s.item.id));
+  const d=Math.max(rawDelta,-Math.min(...sel.map(s=>s.origStart)));
+  // Apply delta to selection
+  sel.forEach(s=>{
+    s.item.start=Math.max(0,s.origStart+d);
+    s.item.end=s.item.start+(s.origEnd-s.origStart);
+  });
+  // Propagate per kind
+  const byKind={};
+  sel.forEach(s=>{const k=s.item.kind;(byKind[k]=byKind[k]||[]).push(s)});
+  this._rippleAffected=new Set();
+  Object.entries(byKind).forEach(([kind,grp])=>{
+    const others=this.getOuterItems(tr,kind,selIds);
+    if(d>0){
+      // Chain push right
+      const grpMaxEnd=Math.max(...grp.map(s=>s.item.end));
+      this._chainPushRight(others,grpMaxEnd);
+    }else if(d<0){
+      // Chain push left
+      const grpMinStart=Math.min(...grp.map(s=>s.item.start));
+      this._chainPushLeft(others,grpMinStart);
+    }
+  });
+},
+
+/** Push a sorted chain of items to the right starting from boundary */
+_chainPushRight(sortedItems,boundary){
+  for(const o of sortedItems){
+    if(o.start<boundary-1e-9){
+      const push=boundary-o.start;
+      o.start+=push;o.end+=push;
+      this._rippleAffected.add(o.id);
+    }
+    boundary=Math.max(boundary,o.end);
+  }
+},
+
+/** Push a sorted chain of items to the left from boundary */
+_chainPushLeft(sortedItems,boundary){
+  for(let j=sortedItems.length-1;j>=0;j--){
+    const o=sortedItems[j];
+    if(o.end>boundary+1e-9){
+      const push=o.end-boundary;
+      o.end-=push;o.start=Math.max(0,o.start-push);
+      if(o.end<=o.start)o.end=o.start+this.MIN_DUR;
+      this._rippleAffected.add(o.id);
+    }
+    boundary=Math.min(boundary,o.start);
+  }
+},
+
+/* ─── TRIM ENGINE v2: handle trim operations ─────────────────────── */
+
+/** Apply trim to a single handle, respecting mode */
+applyHandleTrim(tr,it,side,rawTarget,mode){
+  if(side==='left'){
+    this._trimLeft(tr,it,rawTarget,mode);
+  }else{
+    this._trimRight(tr,it,rawTarget,mode);
+  }
+},
+
+_trimLeft(tr,it,raw,mode){
+  raw=Math.max(0,Math.min(raw,it.end-this.MIN_DUR));
+  if(mode==='keep'){
+    // Clamp to prev neighbor's end
+    const pr=this.getPrevNeighbor(tr,it);
+    if(pr)raw=Math.max(raw,pr.end);
+  }else if(mode==='ripple'){
+    // Allow extending left, but chain-push left neighbors
+    const oldStart=it.start;
+    it.start=raw;
+    if(raw<oldStart){
+      // Pushing left
+      const others=this.getOuterItems(tr,it.kind,new Set([it.id]));
+      this._rippleAffected=new Set();
+      this._chainPushLeft(others,raw);
+    }else if(raw>oldStart){
+      // Shrinking from left — pull right neighbors left (close gap)
+      // Only if they were touching
+      const others=this.getOuterItems(tr,it.kind,new Set([it.id]));
+      const delta=raw-oldStart;
+      for(const o of others){
+        if(o.start>=oldStart-1e-9&&o.start<raw+1e-9){
+          // This neighbor was adjacent or overlapping the old start area
+          // Don't ripple-pull on shrink — that would be confusing
+          break;
+        }
+      }
+    }
+    return;
+  }
+  it.start=raw;
+},
+
+_trimRight(tr,it,raw,mode){
+  raw=Math.max(it.start+this.MIN_DUR,raw);
+  if(mode==='keep'){
+    const nx=this.getNextNeighbor(tr,it);
+    if(nx)raw=Math.min(raw,nx.start);
+  }else if(mode==='ripple'){
+    const oldEnd=it.end;
+    it.end=raw;
+    if(raw>oldEnd){
+      // Extending right — chain push right neighbors
+      const others=this.getOuterItems(tr,it.kind,new Set([it.id]));
+      this._rippleAffected=new Set();
+      this._chainPushRight(others,raw);
+    }
+    return;
+  }
+  it.end=raw;
+},
+
+/* ─── TRIM ENGINE v2: roll trim ──────────────────────────────────── */
+
+/** Find roll pair for a handle drag */
+findRollPair(tr,it,side){
+  if(side==='right'){
+    const nx=this.getNextNeighbor(tr,it);
+    if(nx&&Math.abs(it.end-nx.start)<.05)return{a:it,b:nx};
+  }else{
+    const pr=this.getPrevNeighbor(tr,it);
+    if(pr&&Math.abs(pr.end-it.start)<.05)return{a:pr,b:it};
+  }
+  return null;
+},
+
+/** Apply roll trim: move the junction between a pair, preserving total span */
+applyRollTrim(rp,rawMid){
+  const totalStart=rp.a.start,totalEnd=rp.b.end;
+  let mid=Math.max(totalStart+this.MIN_DUR,Math.min(totalEnd-this.MIN_DUR,rawMid));
+  rp.a.end=mid;
+  rp.b.start=mid;
+},
+
+/* ─── TRIM ENGINE v2: group edge stretch ─────────────────────────── */
+
 stretchSelectionEdge(side,delta){
   const b=this.getSelectionBounds();if(!b)return;
   const {items,minStart,maxEnd,tr}=b;
   const span=maxEnd-minStart;if(span<.04)return;
+  const mode=this.ui.dragMode.value;
+  const selIds=new Set(items.map(i=>i.id));
+
   this.applyTrackEdit(tr,'Group Stretch',()=>{
     if(side==='left'){
-      const newMin=Math.max(0,minStart+delta);
+      let newMin=Math.max(0,minStart+delta);
+      // In no-overlap: don't go past outer left neighbor
+      if(mode==='keep'||mode==='ripple'){
+        const kinds=new Set(items.map(i=>i.kind));
+        for(const kind of kinds){
+          const outers=this.getOuterItems(tr,kind,selIds);
+          for(let j=outers.length-1;j>=0;j--){
+            if(outers[j].end<=minStart+1e-9){
+              if(mode==='keep')newMin=Math.max(newMin,outers[j].end);
+              break;
+            }
+          }
+        }
+      }
       const ratio=(maxEnd-newMin)/span;
       items.forEach(it=>{
         it.start=newMin+(it.start-minStart)*ratio;
         it.end=newMin+(it.end-minStart)*ratio;
       });
     }else{
-      const newMax=Math.max(minStart+.04,maxEnd+delta);
+      let newMax=Math.max(minStart+.04,maxEnd+delta);
+      if(mode==='keep'){
+        const kinds=new Set(items.map(i=>i.kind));
+        for(const kind of kinds){
+          const outers=this.getOuterItems(tr,kind,selIds);
+          for(const o of outers){
+            if(o.start>=maxEnd-1e-9){newMax=Math.min(newMax,o.start);break}
+          }
+        }
+      }
       const ratio=(newMax-minStart)/span;
       items.forEach(it=>{
         it.start=minStart+(it.start-minStart)*ratio;
         it.end=minStart+(it.end-minStart)*ratio;
       });
+      // Ripple: push right neighbors if needed
+      if(mode==='ripple'&&newMax>maxEnd){
+        const kinds=new Set(items.map(i=>i.kind));
+        for(const kind of kinds){
+          const outers=this.getOuterItems(tr,kind,selIds);
+          this._chainPushRight(outers,newMax);
+        }
+      }
     }
   });
 },
@@ -1125,7 +1389,6 @@ smartTextSplit(text,ratio){
   return{before:words.slice(0,splitIdx).join(' '),after:words.slice(splitIdx).join(' ')};
 },
 
-/* clean merge text — no double spaces */
 mergeTexts(a,b){
   return(a.trim()+' '+b.trim()).replace(/\s{2,}/g,' ').trim();
 },
@@ -1284,9 +1547,8 @@ deleteTrackById(id){
   if(!confirm(`Удалить дорожку "${tr.name}" со всеми элементами?`))return;
   this.pushHistory('Delete Track');
   this.project.tracks=this.project.tracks.filter(t=>t.id!==id);
-  if(this.project.activeTrackId===id){
+  if(this.project.activeTrackId===id)
     this.project.activeTrackId=this.project.tracks[0]?.id||null;
-  }
   if(this.selected.trackId===id)this.clearSelection();
   this.markDirty();this.fullRender();
 },
@@ -1314,6 +1576,12 @@ renderTimeline(){
   const sc=this.ui.timelineContainer;
   const vpLeft=sc.scrollLeft/this.zoom,vpRight=(sc.scrollLeft+sc.clientWidth)/this.zoom;
   const vpMargin=2;
+  // Collect ripple-affected & roll-pair ids for visual feedback
+  const rippleSet=this._rippleAffected||new Set();
+  const rollIds=new Set();
+  if(this.drag.active&&this.drag.rollPair){
+    rollIds.add(this.drag.rollPair.a.id);rollIds.add(this.drag.rollPair.b.id);
+  }
 
   this.getVisibleTracks().forEach(tr=>{
     const ti=this.project.tracks.indexOf(tr);
@@ -1325,7 +1593,12 @@ renderTimeline(){
     const isActive=tr.id===this.project.activeTrackId&&!tr.locked;
     this.visibleItems(tr,layerM).forEach(it=>{
       if(it.end<vpLeft-vpMargin||it.start>vpRight+vpMargin)return;
-      c.appendChild(this.createTrackItemElement(tr,it,trackTop,lh,color,isActive));
+      const el=this.createTrackItemElement(tr,it,trackTop,lh,color,isActive);
+      // Visual feedback classes
+      if(rippleSet.has(it.id))el.classList.add('ripple-affected');
+      if(rollIds.has(it.id))el.classList.add('roll-pair');
+      if(this._dragClamped&&this.drag.active&&this.selected.ids.has(it.id))el.classList.add('drag-clamped');
+      c.appendChild(el);
     });
   });
 },
@@ -1358,7 +1631,9 @@ createTrackItemElement(tr,it,trackTop,lh,color,isActive){
         const si=this.itemById(tr.id,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null;
       }).filter(Boolean);
       this.drag={active:true,type:'move',trackId:tr.id,itemId:it.id,startX:e.clientX,
-        initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value};
+        initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value,rollPair:null};
+      this._dragClamped=false;this._rippleAffected=new Set();
+      this.showDragModeBadge(this.drag.mode);
     });
   }
   const label=document.createElement('span');label.textContent=it.text;label.style.pointerEvents='none';
@@ -1401,6 +1676,21 @@ hexToRgba(hex,a){
   return `rgba(${r},${g},${b},${a})`;
 },
 
+/* ─── drag mode badge ────────────────────────────────────────────── */
+showDragModeBadge(mode){
+  this.hideDragModeBadge();
+  if(mode==='free')return;
+  const badge=document.createElement('div');
+  badge.className='drag-mode-badge';
+  badge.textContent=mode==='keep'?'NO-OVERLAP':mode==='roll'?'ROLL TRIM':'RIPPLE';
+  document.body.appendChild(badge);
+  this._dragModeBadge=badge;
+},
+
+hideDragModeBadge(){
+  if(this._dragModeBadge){this._dragModeBadge.remove();this._dragModeBadge=null}
+},
+
 /* ─── playhead ───────────────────────────────────────────────────── */
 syncPlayhead(){
   const t=this.audioElement.currentTime||0,px=t*this.zoom;
@@ -1437,137 +1727,6 @@ centerScrollOnTime(time){
   this.ui.timelineContainer.scrollLeft=Math.max(0,px-sw/2);
 },
 
-/* ─── drag helpers (improved trim engine) ────────────────────────── */
-getPrevNeighbor(tr,it){
-  const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
-  const idx=same.findIndex(i=>i.id===it.id);
-  return idx>0?same[idx-1]:null;
-},
-
-getNextNeighbor(tr,it){
-  const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
-  const idx=same.findIndex(i=>i.id===it.id);
-  return idx>=0&&idx<same.length-1?same[idx+1]:null;
-},
-
-applyFreeMove(sel,rawDelta){
-  sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+rawDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+rawDelta)});
-},
-
-applyNoOverlapMove(tr,sel,rawDelta){
-  const selIds=new Set(sel.map(s=>s.item.id));
-  let d=rawDelta;
-  // Per-kind: find the tightest constraint
-  const byKind={};
-  sel.forEach(s=>{const k=s.item.kind;if(!byKind[k])byKind[k]=[];byKind[k].push(s)});
-  Object.entries(byKind).forEach(([kind,selOfKind])=>{
-    const others=tr.items.filter(i=>!selIds.has(i.id)&&i.kind===kind).sort((a,b)=>a.start-b.start);
-    selOfKind.forEach(s=>{
-      if(d>0){
-        // find first non-selected item that starts at/after orig end
-        for(const o of others){
-          if(o.start>=s.origEnd-1e-9){
-            d=Math.min(d,Math.max(0,o.start-(s.origEnd)));
-            break;
-          }
-        }
-      }else if(d<0){
-        // find last non-selected item that ends at/before orig start
-        for(let j=others.length-1;j>=0;j--){
-          if(others[j].end<=s.origStart+1e-9){
-            d=Math.max(d,Math.min(0,others[j].end-s.origStart));
-            break;
-          }
-        }
-      }
-    });
-  });
-  sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+d);s.item.end=Math.max(s.item.start+.02,s.origEnd+d)});
-},
-
-applyRippleMove(tr,sel,rawDelta){
-  const selIds=new Set(sel.map(s=>s.item.id));
-  // Move selected items
-  sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+rawDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+rawDelta)});
-  // Push/pull neighbours per kind
-  const byKind={};
-  sel.forEach(s=>{const k=s.item.kind;if(!byKind[k])byKind[k]=[];byKind[k].push(s)});
-  Object.entries(byKind).forEach(([kind,selOfKind])=>{
-    const others=tr.items.filter(i=>!selIds.has(i.id)&&i.kind===kind).sort((a,b)=>a.start-b.start);
-    if(rawDelta>0){
-      // push right: any non-selected overlapping after move
-      selOfKind.forEach(s=>{
-        others.forEach(o=>{
-          if(o.start<s.item.end&&o.start>=s.origEnd-1e-9){
-            const push=s.item.end-o.start;
-            o.start+=push;o.end+=push;
-          }
-        });
-      });
-    }else if(rawDelta<0){
-      // push left: any non-selected overlapping before move
-      selOfKind.forEach(s=>{
-        for(let j=others.length-1;j>=0;j--){
-          const o=others[j];
-          if(o.end>s.item.start&&o.end<=s.origStart+1e-9){
-            const push=s.item.start-o.end;
-            o.start=Math.max(0,o.start+push);o.end=Math.max(o.start+.02,o.end+push);
-          }
-        }
-      });
-    }
-  });
-},
-
-applyHandleTrim(tr,it,side,raw,mode){
-  if(side==='left'){
-    raw=Math.max(0,Math.min(raw,it.end-.02));
-    if(mode==='keep'||mode==='ripple'){
-      const pr=this.getPrevNeighbor(tr,it);
-      if(pr&&pr.kind===it.kind)raw=Math.max(raw,pr.end);
-    }
-    const oldStart=it.start;
-    it.start=raw;
-    if(mode==='ripple'){
-      const delta=raw-oldStart;
-      if(Math.abs(delta)>1e-6){
-        const pr=this.getPrevNeighbor(tr,it);
-        if(pr&&pr.kind===it.kind&&delta<0){
-          // extending left: push prev items
-          tr.items.filter(i=>i.kind===it.kind&&i.end<=oldStart+1e-9&&i.id!==it.id)
-            .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
-        }
-      }
-    }
-  }else{
-    raw=Math.max(it.start+.02,raw);
-    if(mode==='keep'||mode==='ripple'){
-      const nx=this.getNextNeighbor(tr,it);
-      if(nx&&nx.kind===it.kind){
-        if(mode==='keep')raw=Math.min(raw,nx.start);
-      }
-    }
-    const oldEnd=it.end;
-    it.end=raw;
-    if(mode==='ripple'){
-      const delta=raw-oldEnd;
-      if(Math.abs(delta)>1e-6){
-        tr.items.filter(i=>i.kind===it.kind&&i.start>=oldEnd-1e-9&&i.id!==it.id)
-          .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
-      }
-    }
-  }
-},
-
-applyRollTrim(rp,dx,snapStep){
-  const totalDur=rp.b.end-rp.a.start;
-  let newMid=rp.a.end+dx;
-  if(snapStep)newMid=Math.round(newMid/snapStep)*snapStep;
-  newMid=Math.max(rp.a.start+.02,Math.min(rp.b.end-.02,newMid));
-  rp.a.end=newMid;rp.b.start=newMid;
-  rp.b.end=Math.max(rp.b.start+.02,rp.a.start+totalDur);
-},
-
 /* ─── drag: main handlers ────────────────────────────────────────── */
 handleTimelineMouseDown(e){
   if(e.button===2)return;
@@ -1583,10 +1742,14 @@ handleTimelineMouseDown(e){
     const tr=this.trackById(tid),it=this.itemById(tid,id);if(!tr||!it)return;
     const mode=this.ui.dragMode.value;
     let rollPair=null;
-    if(mode==='roll'&&side==='right'){const nx=this.getNextNeighbor(tr,it);if(nx)rollPair={a:it,b:nx}}
-    if(mode==='roll'&&side==='left'){const pr=this.getPrevNeighbor(tr,it);if(pr)rollPair={a:pr,b:it}}
+    if(mode==='roll'){
+      rollPair=this.findRollPair(tr,it,side);
+    }
     this.drag={active:true,type:'handle',trackId:tid,itemId:id,side,startX:e.clientX,
-      initial:{start:it.start,end:it.end},sel:[],rollPair,mode};
+      initial:{start:it.start,end:it.end},sel:[],rollPair,mode,
+      origMid:side==='right'?it.end:it.start};
+    this._dragClamped=false;this._rippleAffected=new Set();
+    this.showDragModeBadge(mode);
     return;
   }
 
@@ -1596,9 +1759,13 @@ handleTimelineMouseDown(e){
     if(!e.shiftKey&&!(this.selected.trackId===tid&&this.selected.ids.has(id))){
       this.clearSelection();this.selectItem(tid,id);
     }else if(e.shiftKey){this.selectItem(tid,id)}
-    const selSnap=this.selected.trackId===tid?[...this.selected.ids].map(sid=>{const si=this.itemById(tid,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null}).filter(Boolean):[{item:it,origStart:it.start,origEnd:it.end}];
+    const selSnap=this.selected.trackId===tid
+      ?[...this.selected.ids].map(sid=>{const si=this.itemById(tid,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null}).filter(Boolean)
+      :[{item:it,origStart:it.start,origEnd:it.end}];
     this.drag={active:true,type:'move',trackId:tid,itemId:id,startX:e.clientX,
-      initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value};
+      initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value,rollPair:null};
+    this._dragClamped=false;this._rippleAffected=new Set();
+    this.showDragModeBadge(this.drag.mode);
     return;
   }
 
@@ -1646,7 +1813,7 @@ handleLoopDragMove(e){
 
 snapToItemEdges(value,tr,excludeIds){
   if(!tr)return value;
-  const threshold=8/this.zoom; // 8px порог
+  const threshold=8/this.zoom;
   let best=value,bestDist=threshold;
   tr.items.forEach(it=>{
     if(excludeIds&&excludeIds.has(it.id))return;
@@ -1658,37 +1825,52 @@ snapToItemEdges(value,tr,excludeIds){
   return best;
 },
 
+applySnap(raw,excludeIds,tr){
+  if(this.snapStep==='items'){
+    return this.snapToItemEdges(raw,tr,excludeIds);
+  }else if(this.snapStep){
+    return Math.round(raw/this.snapStep)*this.snapStep;
+  }
+  return raw;
+},
+
 handleMainDragMove(e){
   const dx=(e.clientX-this.drag.startX)/this.zoom;
   const tr=this.trackById(this.drag.trackId);if(!tr)return;
   const mode=this.drag.mode||'free';
+  this._dragClamped=false;
 
   if(this.drag.type==='move'){
     let rawDelta=dx;
+    const selIds=new Set(this.drag.sel.map(s=>s.item.id));
     if(this.snapStep==='items'){
-      const tr=this.trackById(this.drag.trackId);
-      const selIds=new Set(this.drag.sel.map(s=>s.item.id));
-      const ref=this.drag.sel[0];if(ref){
+      const ref=this.drag.sel[0];
+      if(ref){
         const snapped=this.snapToItemEdges(ref.origStart+dx,tr,selIds);
         rawDelta=snapped-ref.origStart;
       }
     }else if(this.snapStep){rawDelta=Math.round(dx/this.snapStep)*this.snapStep}
+    // Clamp to >= 0
     this.drag.sel.forEach(s=>{rawDelta=Math.max(rawDelta,-s.origStart)});
+    // Reset ripple affected
+    this._rippleAffected=new Set();
     if(mode==='free'){this.applyFreeMove(this.drag.sel,rawDelta)}
     else if(mode==='ripple'){this.applyRippleMove(tr,this.drag.sel,rawDelta)}
-    else{this.applyNoOverlapMove(tr,this.drag.sel,rawDelta)}
+    else if(mode==='keep'){this.applyNoOverlapMove(tr,this.drag.sel,rawDelta)}
+    else{/* roll mode with move = same as no-overlap */this.applyNoOverlapMove(tr,this.drag.sel,rawDelta)}
   }
 
   if(this.drag.type==='handle'){
     const it=this.itemById(this.drag.trackId,this.drag.itemId);if(!it)return;
     const rp=this.drag.rollPair;
+    this._rippleAffected=new Set();
     if(rp&&mode==='roll'){
-      this.applyRollTrim(rp,dx,this.snapStep);
+      let rawMid=this.drag.origMid+dx;
+      rawMid=this.applySnap(rawMid,new Set([rp.a.id,rp.b.id]),tr);
+      this.applyRollTrim(rp,rawMid);
     }else{
       let raw=this.drag.side==='left'?this.drag.initial.start+dx:this.drag.initial.end+dx;
-      if(this.snapStep==='items'){
-        raw=this.snapToItemEdges(raw,tr,new Set([this.drag.itemId]));
-      }else if(this.snapStep){raw=Math.round(raw/this.snapStep)*this.snapStep}
+      raw=this.applySnap(raw,new Set([this.drag.itemId]),tr);
       this.applyHandleTrim(tr,it,this.drag.side,raw,mode);
     }
   }
@@ -1707,14 +1889,15 @@ handleMarqueeMove(e){
 },
 
 handleGlobalMouseUp(){
+  this.hideDragModeBadge();
   if(this.playheadDrag.active){this.playheadDrag.active=false;document.body.style.cursor='';return}
   if(this.charDrag.active){this.commitCharDrag();return}
   if(this.drag.active){
-    this.resolveNoOverlap();
     this.sortActiveTrack();
     this.normalizeTrackAfterEdit(this.activeTrack());
     this.pushHistory('Drag');this.markDirty();
     this.drag={active:false};
+    this._dragClamped=false;this._rippleAffected=new Set();
     this.afterEdit();return;
   }
   if(this._loopDrag?.active){
@@ -1757,26 +1940,6 @@ finalizeMarquee(){
     }
   });
   this.renderTimeline();this.renderInspector();
-},
-
-resolveNoOverlap(){
-  const mode=this.ui.dragMode.value;if(mode==='free')return;
-  const tr=this.activeTrack();if(!tr)return;
-  ['line','word','char'].forEach(kind=>{
-    const items=tr.items.filter(i=>i.kind===kind);
-    this.sortItems(items);
-    for(let i=1;i<items.length;i++){
-      if(items[i].start<items[i-1].end){
-        if(mode==='ripple'){
-          const d=items[i-1].end-items[i].start;
-          items[i].start+=d;items[i].end+=d;
-        }else{
-          items[i].start=items[i-1].end;
-          if(items[i].end<=items[i].start)items[i].end=items[i].start+.05;
-        }
-      }
-    }
-  });
 },
 
 /* ─── selection ──────────────────────────────────────────────────── */
@@ -1892,7 +2055,7 @@ applyInspectorEdits(tr,it){
   const ns=this.num(ins('ins-start').value,it.start),ne=this.num(ins('ins-end').value,it.end);
   if(ns>=ne){alert('Start должен быть меньше End');return}
   this.pushHistory('Inspector Edit');
-  it.start=Math.max(0,ns);it.end=Math.max(it.start+.02,ne);
+  it.start=Math.max(0,ns);it.end=Math.max(it.start+this.MIN_DUR,ne);
   it.text=ins('ins-text').value;
   this.normalizeTrackAfterEdit(tr);
   this.markDirty();this.afterEdit();
@@ -1941,9 +2104,9 @@ handleCharDragMove(e){
   const width=tl.offsetWidth||200;
   const dxPx=e.clientX-startX,dtBig=dxPx/width*(it.end-it.start);
   if(side==='left'){
-    ch.start=Math.max(it.start,Math.min(initialStart+dtBig,this.num(ch.end,it.end)-.02));
+    ch.start=Math.max(it.start,Math.min(initialStart+dtBig,this.num(ch.end,it.end)-this.MIN_DUR));
   }else{
-    ch.end=Math.max(this.num(ch.start,it.start)+.02,Math.min(initialEnd+dtBig,it.end));
+    ch.end=Math.max(this.num(ch.start,it.start)+this.MIN_DUR,Math.min(initialEnd+dtBig,it.end));
   }
   this.renderInspector();
 },
@@ -1987,7 +2150,7 @@ bindInspectorBatch(tr,items){
     const gap=this.num(document.getElementById('batch-gap').value,0);
     this.pushHistory('Batch Close Gaps');
     const sorted=[...items].sort((a,b)=>a.start-b.start);
-    sorted.forEach((it,i)=>{if(i>0){it.start=sorted[i-1].end+gap;it.end=Math.max(it.start+.02,it.end)}});
+    sorted.forEach((it,i)=>{if(i>0){it.start=sorted[i-1].end+gap;it.end=Math.max(it.start+this.MIN_DUR,it.end)}});
     this.normalizeTrackAfterEdit(tr);
     this.markDirty();this.afterEdit();
   });
@@ -2011,7 +2174,7 @@ batchMoveRipple(tr,selItems,delta){
       });
     });
   }
-  selItems.forEach(i=>{i.start=Math.max(0,i.start+fd);i.end=Math.max(i.start+.02,i.end+fd)});
+  selItems.forEach(i=>{i.start=Math.max(0,i.start+fd);i.end=Math.max(i.start+this.MIN_DUR,i.end+fd)});
   this.sortTrack(tr);
 },
 
@@ -2231,7 +2394,7 @@ batchCloseGapsCtx(){
   const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
   const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean).sort((a,b)=>a.start-b.start);
   this.pushHistory('Batch Close Gaps');
-  items.forEach((it,i)=>{if(i>0){it.start=items[i-1].end;it.end=Math.max(it.start+.02,it.end)}});
+  items.forEach((it,i)=>{if(i>0){it.start=items[i-1].end;it.end=Math.max(it.start+this.MIN_DUR,it.end)}});
   this.normalizeTrackAfterEdit(tr);
   this.markDirty();this.afterEdit();
 },
@@ -2307,13 +2470,15 @@ renderPreview(){
   if(!source){this.ui.lyricsContainer.innerHTML='<p class="muted">Нет данных</p>';return}
 
   const wordsForLine=(wTr,line)=>{
-    // Exact lineId match (same track)
     const byId=wTr.items.filter(i=>i.kind==='word'&&i.lineId===line.id);
     if(byId.length)return byId.sort((a,b)=>a.start-b.start);
-    // Time-overlap fallback (cross-track or orphan words)
     return wTr.items.filter(i=>i.kind==='word'&&i.start>=line.start-.05&&i.end<=line.end+.15)
       .sort((a,b)=>a.start-b.start);
   };
+
+  const wordSpans=(words,t)=>words.map(w=>`<span class="lyric-word${t>=w.start&&t<w.end?' playing':''}">${this.esc(w.text)} </span>`).join('');
+
+  const lineClass=(playing,selUI)=>`lyric-line${playing?' playing':''}${selUI?' selected-ui':''}`;
 
   let html='';
   if(source===wordsTr&&!lineTr){
@@ -2321,30 +2486,25 @@ renderPreview(){
       const words=wordsForLine(wordsTr,line);
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===wordsTr.id&&this.selected.ids.has(line.id);
-      html+=`<div class="lyric-line${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${wordsTr.id}">`;
-      if(words.length){
-        words.forEach(w=>{html+=`<span class="lyric-word${t>=w.start&&t<w.end?' playing':''}">${this.esc(w.text)} </span>`});
-      }else{html+=this.esc(line.text)}
+      html+=`<div class="${lineClass(playing,selUI)}" data-id="${line.id}" data-tid="${wordsTr.id}">`;
+      html+=words.length?wordSpans(words,t):this.esc(line.text);
       html+='</div>';
     });
   }else if(lineTr&&wordsTr){
     lineTr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).forEach(line=>{
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===lineTr.id&&this.selected.ids.has(line.id);
-      html+=`<div class="lyric-line preview-subline${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${lineTr.id}">`;
+      html+=`<div class="${lineClass(playing,selUI)} preview-subline" data-id="${line.id}" data-tid="${lineTr.id}">`;
       html+=`<span class="preview-underlay">${this.esc(line.text)}</span>`;
       const words=wordsForLine(wordsTr,line);
-      if(words.length){
-        html+=' <span style="opacity:.7">|</span> ';
-        words.forEach(w=>{html+=`<span class="lyric-word preview-overlay${t>=w.start&&t<w.end?' playing':''}">${this.esc(w.text)} </span>`});
-      }
+      if(words.length)html+=' <span style="opacity:.7">|</span> '+wordSpans(words,t);
       html+='</div>';
     });
   }else{
     source.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).forEach(line=>{
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===source.id&&this.selected.ids.has(line.id);
-      html+=`<div class="lyric-line${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${source.id}">${this.esc(line.text)}</div>`;
+      html+=`<div class="${lineClass(playing,selUI)}" data-id="${line.id}" data-tid="${source.id}">${this.esc(line.text)}</div>`;
     });
   }
 
@@ -2369,9 +2529,8 @@ openExportPreviewForTrack(tr){
   try{
     const normalized=this.normalizeTrackForExport(tr);
     const json=this.serializeTrack(normalized);
-    const text=JSON.stringify(json,null,2);
     this._exportPreviewTrack=tr;
-    this.ui.exportPreviewText.value=text;
+    this.ui.exportPreviewText.value=JSON.stringify(json,null,2);
     this.ui.exportPreviewModal.classList.remove('hidden');
   }catch(e){alert('Ошибка подготовки экспорта: '+e.message)}
 },
@@ -2813,7 +2972,7 @@ nudgeSelected(delta){
   this.pushHistory('Nudge');
   [...this.selected.ids].forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
-    it.start=Math.max(0,it.start+delta);it.end=Math.max(it.start+.02,it.end+delta);
+    it.start=Math.max(0,it.start+delta);it.end=Math.max(it.start+this.MIN_DUR,it.end+delta);
   });
   this.markDirty();this.afterEdit();
 },
@@ -2823,8 +2982,8 @@ stretchSelected(side,delta){
   this.pushHistory('Stretch');
   [...this.selected.ids].forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
-    if(side==='left')it.start=Math.max(0,Math.min(it.end-.02,it.start+delta));
-    else it.end=Math.max(it.start+.02,it.end+delta);
+    if(side==='left')it.start=Math.max(0,Math.min(it.end-this.MIN_DUR,it.start+delta));
+    else it.end=Math.max(it.start+this.MIN_DUR,it.end+delta);
   });
   this.markDirty();this.afterEdit();
 },
@@ -2879,8 +3038,7 @@ runValidation(){
         const line=tr.items.find(l=>l.kind==='line'&&l.id===it.lineId);
         if(!line){
           out.push({sev:'warn',msg:`[${tr.name}] Слово "${it.text}" не привязано к строке${it.lineId?' (orphan lineId: '+it.lineId+')':''}`});
-        }
-        else{
+        }else{
           if(it.start<line.start-.01)out.push({sev:'err',msg:`[${tr.name}] Слово "${it.text}" начинается раньше строки`});
           if(it.end>line.end+.01)out.push({sev:'err',msg:`[${tr.name}] Слово "${it.text}" заканчивается позже строки`});
         }
