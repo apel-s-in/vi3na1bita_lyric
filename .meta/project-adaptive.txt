@@ -80,6 +80,7 @@ vi3na1bita_lyric/
 │   │   ├── 14/
 │   │   │   └── 7751def38acab588dd4a6ae3ac5ca7c09ae95f
 │   │   ├── 18/
+│   │   │   ├── 8133ec07c63cf6b082e90aab55346c01014220
 │   │   │   └── 90c9b85aff10410df6173f369095351fdcb186
 │   │   ├── 1a/
 │   │   │   └── 2c3cf6c297dec3077bc80acb01eb00cfd59af6
@@ -91,6 +92,8 @@ vi3na1bita_lyric/
 │   │   │   └── 434d4e9d3af79f3e6c3650fb110693a83a8ef6
 │   │   ├── 2a/
 │   │   │   └── 51e5bedc07ae284c59e3f2fcbe837a89702d9c
+│   │   ├── 2b/
+│   │   │   └── ebf5f4fc4af1352d1f4c6c6b40e14060649774
 │   │   ├── 33/
 │   │   │   └── cc2c0bd8c1e05a1aa83f6492e5d643b4da166d
 │   │   ├── 3f/
@@ -119,7 +122,8 @@ vi3na1bita_lyric/
 │   │   ├── 54/
 │   │   │   └── 20ac903a632bf7e20a4f77887d9cdec3e7d1a9
 │   │   ├── 55/
-│   │   │   └── 84801396416c22051fda28c0dbb533f4de62c5
+│   │   │   ├── 84801396416c22051fda28c0dbb533f4de62c5
+│   │   │   └── b65e7ec9422db1c57efc2e9f1eaabc47750433
 │   │   ├── 58/
 │   │   │   ├── 7d475f2e684cadc02cdee1542fbefbb1175928
 │   │   │   └── cf869efbccbf89de2fd1e496314220530e52be
@@ -129,9 +133,12 @@ vi3na1bita_lyric/
 │   │   ├── 5e/
 │   │   │   └── 4d559a1bdfedcc4e333e937e2c9d3cded2d3ae
 │   │   ├── 61/
-│   │   │   └── 57f90ec1b0f24f74c5e69eebb55a2813503867
+│   │   │   ├── 57f90ec1b0f24f74c5e69eebb55a2813503867
+│   │   │   └── d712c8b2ad3e6822cb19ef83858ea048fc4a89
 │   │   ├── 65/
 │   │   │   └── 0c596e73c4e01572ae5eb1768e30a3b3d15bb9
+│   │   ├── 67/
+│   │   │   └── be39212809f2382e5647bce78c14459f1641d0
 │   │   ├── 68/
 │   │   │   ├── 1676e1a6adafa5dd8a86c2536823831fc0abc5
 │   │   │   └── 3396f390878fbdefaebb957c5e4c9a4bd60b9d
@@ -140,6 +147,8 @@ vi3na1bita_lyric/
 │   │   │   └── fe2c96a1128f76de46c56aa97b29e382056186
 │   │   ├── 79/
 │   │   │   └── 93643e0ba6c52a8d99e0470f3fce523e9ae925
+│   │   ├── 7a/
+│   │   │   └── eab5ee345329311cbf638debdb85f79a7f231f
 │   │   ├── 7d/
 │   │   │   └── d0e1c9dda0ac791e027049e79b739e1400dcbc
 │   │   ├── 7e/
@@ -154,6 +163,8 @@ vi3na1bita_lyric/
 │   │   │   └── a5d3f8d3b902d871e683659b3e07e863e365d7
 │   │   ├── 8c/
 │   │   │   └── 1d05996de6c44660ad232f53ab0fd4171e1869
+│   │   ├── 8e/
+│   │   │   └── 9fa12fa7c761a989b742b1402c51ba5ac512b7
 │   │   ├── 90/
 │   │   │   ├── 8415af662e5c4a38e45cadcc89245353d306c4
 │   │   │   └── 948a08ce6cf8f5b8bef6bde63cad67f4a3ae77
@@ -195,6 +206,8 @@ vi3na1bita_lyric/
 │   │   │   └── 97785da31dbb6fe3bacdd12d9042a96e1fe507
 │   │   ├── d5/
 │   │   │   └── caa9d2cc28ca9ac6cf8446a0000600e43a0f8d
+│   │   ├── de/
+│   │   │   └── 1af87d17dd3c37714fa02b344cf680a0ec43e7
 │   │   ├── ea/
 │   │   │   └── 2223ec4ffca331c83170396801b02c7ef8aa0d
 │   │   ├── eb/
@@ -237,7 +250,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 18:32:35 UTC
+Сгенерировано: 2026-03-09 18:46:39 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -372,8 +385,10 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
       <button class="btn" id="btn-export-line">Export Line</button>
       <button class="btn" id="btn-export-words">Export Words</button>
       <button class="btn" id="btn-export-all">Export All</button>
+      <button class="btn" id="btn-validate">Validate</button>
       <button class="btn" id="btn-restore-session">Restore Draft</button>
       <button class="btn" id="btn-hotkeys">Hotkeys</button>
+      <button class="btn" id="btn-help">Help</button>
     </div>
     <div class="grp">
       <button class="btn" id="btn-play">Play/Pause</button>
@@ -412,13 +427,30 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
         <option value="roll">Roll Trim</option>
         <option value="ripple">Ripple Trim</option>
       </select>
+      <span class="sep"></span>
+      <span>Layer:</span>
+      <select id="layer-mode">
+        <option value="auto">Auto</option>
+        <option value="line">Lines</option>
+        <option value="word">Words</option>
+        <option value="char">Chars</option>
+      </select>
+      <span class="sep"></span>
+      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
+      <button class="btn" id="btn-fit-song">Fit Song</button>
+      <button class="btn" id="btn-scroll-selection">Scroll Sel</button>
+      <button class="btn" id="btn-goto-selection">Go To Sel</button>
     </div>
 
     <div class="grp">
       <button class="btn" id="btn-select-all">Select All</button>
       <button class="btn" id="btn-deselect">Deselect</button>
       <button class="btn" id="btn-split">Split at Playhead</button>
+      <button class="btn" id="btn-merge-prev">Merge Prev</button>
       <button class="btn" id="btn-merge">Merge Next</button>
+      <button class="btn" id="btn-duplicate">Duplicate</button>
+      <button class="btn" id="btn-add-line">Add Line</button>
+      <button class="btn" id="btn-add-word">Add Word</button>
       <button class="btn" id="btn-delete">Delete</button>
     </div>
 
@@ -470,8 +502,16 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
 <div id="context-menu" class="ctx hidden">
   <div class="ctx-item" id="ctx-edit">Edit Text</div>
   <div class="ctx-item" id="ctx-split">Split at Playhead</div>
+  <div class="ctx-item" id="ctx-split-cursor">Split By Cursor</div>
+  <div class="ctx-item" id="ctx-merge-prev">Merge With Prev</div>
   <div class="ctx-item" id="ctx-merge-next">Merge With Next</div>
+  <div class="ctx-item" id="ctx-duplicate">Duplicate</div>
+  <div class="ctx-item" id="ctx-add-line">Add New Line</div>
+  <div class="ctx-item" id="ctx-add-word">Add New Word</div>
   <div class="ctx-item" id="ctx-move-playhead">Move to Playhead</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-zoom-selection">Zoom to Selection</div>
+  <div class="ctx-item" id="ctx-scroll-selection">Scroll to Selection</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-delete">Delete</div>
 </div>
@@ -491,12 +531,35 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
 <div id="hotkeys-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
     <h3>Горячие клавиши</h3>
-    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Назначения сохраняются локально.</p>
+    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Можно очистить отдельную команду. Конфликты подсвечиваются.</p>
+    <div id="hotkeys-conflicts" class="muted" style="margin:0 0 10px 0"></div>
     <div id="hotkeys-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn" id="btn-hotkeys-reset">Reset Default</button>
       <button class="btn pri" id="btn-hotkeys-save">Save</button>
       <button class="btn" id="btn-hotkeys-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="validation-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>Validation / QA</h3>
+    <p>Проверка таймингов, пересечений, конфликтов и структуры перед экспортом.</p>
+    <div id="validation-list" class="hotkeys-list"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-validation-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>Hotkey Help / Legend</h3>
+    <p>Краткая справка по текущим командам и режимам редактора.</p>
+    <div id="help-list" class="hotkeys-list"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-help-close">Close</button>
     </div>
   </div>
 </div>
