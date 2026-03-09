@@ -2265,39 +2265,34 @@ updateSaveStatus(msg,isDirty){
 },
 
 /* ─── ui prefs ───────────────────────────────────────────────────── */
+_uiPrefFields:['zoom','verticalZoom','autoScroll','volume','muted','autosaveEnabled','autosaveIntervalSec','snapStep'],
+
+_syncUiToDOM(){
+  this.ui.zoomSlider.value=this.zoom;
+  this.ui.vzoomSlider.value=Math.round(this.verticalZoom*100);
+  this.ui.autoScroll.checked=this.autoScroll;
+  this.ui.autosaveEnabled.checked=this.autosaveEnabled;
+  this.ui.autosaveInterval.value=this.autosaveIntervalSec;
+  this.ui.snapSelect.value=this.snapStep;
+  this.applyVol();this.updateVolumeReadout();this.updateZoomReadout();this.updateVZoomReadout();
+},
+
 persistUiPrefs(){
   try{
-    localStorage.setItem(this.UI_KEY,JSON.stringify({
-      zoom:this.zoom,verticalZoom:this.verticalZoom,
-      autoScroll:this.autoScroll,volume:this.volume,muted:this.muted,
-      autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,
-      sidebarWidth:this.ui.sidebar.style.width,
-      snapStep:this.snapStep,dragMode:this.ui.dragMode.value,layerMode:this.ui.layerMode.value
-    }));
+    const o={sidebarWidth:this.ui.sidebar.style.width,dragMode:this.ui.dragMode.value,layerMode:this.ui.layerMode.value};
+    this._uiPrefFields.forEach(f=>{o[f]=this[f]});
+    localStorage.setItem(this.UI_KEY,JSON.stringify(o));
   }catch(e){console.warn(e)}
 },
 
 restoreUiPrefs(){
   try{
     const p=JSON.parse(localStorage.getItem(this.UI_KEY)||'{}');
-    if(p.zoom)this.zoom=p.zoom;
-    if(p.verticalZoom)this.verticalZoom=p.verticalZoom;
-    if(p.autoScroll!==undefined)this.autoScroll=p.autoScroll;
-    if(p.volume!==undefined)this.volume=p.volume;
-    if(p.muted!==undefined)this.muted=p.muted;
-    if(p.autosaveEnabled!==undefined)this.autosaveEnabled=p.autosaveEnabled;
-    if(p.autosaveIntervalSec)this.autosaveIntervalSec=p.autosaveIntervalSec;
+    this._uiPrefFields.forEach(f=>{if(p[f]!==undefined)this[f]=p[f]});
     if(p.sidebarWidth)this.ui.sidebar.style.width=p.sidebarWidth;
-    if(p.snapStep!==undefined)this.snapStep=p.snapStep;
     if(p.dragMode)this.ui.dragMode.value=p.dragMode;
     if(p.layerMode)this.ui.layerMode.value=p.layerMode;
-    this.ui.zoomSlider.value=this.zoom;
-    this.ui.vzoomSlider.value=Math.round(this.verticalZoom*100);
-    this.ui.autoScroll.checked=this.autoScroll;
-    this.ui.autosaveEnabled.checked=this.autosaveEnabled;
-    this.ui.autosaveInterval.value=this.autosaveIntervalSec;
-    this.ui.snapSelect.value=this.snapStep;
-    this.applyVol();this.updateVolumeReadout();this.updateZoomReadout();this.updateVZoomReadout();
+    this._syncUiToDOM();
   }catch(e){console.warn(e)}
 },
 
