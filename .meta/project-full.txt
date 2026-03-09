@@ -61,6 +61,10 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── 01/
 │   │   │   └── 502b13e19cf0e0a38e7168405fc4a28e65338e
+│   │   ├── 03/
+│   │   │   └── a0f933246e076f9917869a7e967c7464ba9e0d
+│   │   ├── 07/
+│   │   │   └── 12e2761a4a6213eb5d4f9cc680e6ea066e260c
 │   │   ├── 09/
 │   │   │   └── de1863709c7dd00eeb09587ed2c60898db7a02
 │   │   ├── 0a/
@@ -71,6 +75,8 @@ vi3na1bita_lyric/
 │   │   │   └── 0ae4bd3cfe468c7c484db5d0ba6c0371c90310
 │   │   ├── 14/
 │   │   │   └── 7751def38acab588dd4a6ae3ac5ca7c09ae95f
+│   │   ├── 18/
+│   │   │   └── 90c9b85aff10410df6173f369095351fdcb186
 │   │   ├── 1a/
 │   │   │   └── 2c3cf6c297dec3077bc80acb01eb00cfd59af6
 │   │   ├── 1d/
@@ -79,6 +85,8 @@ vi3na1bita_lyric/
 │   │   │   └── 528f2fd9d38859d05977907e8797958b1b9949
 │   │   ├── 2a/
 │   │   │   └── 51e5bedc07ae284c59e3f2fcbe837a89702d9c
+│   │   ├── 33/
+│   │   │   └── cc2c0bd8c1e05a1aa83f6492e5d643b4da166d
 │   │   ├── 3f/
 │   │   │   └── 57169714e6fa80f3b4ee2f5a55ccc74fc1ca39
 │   │   ├── 40/
@@ -93,6 +101,8 @@ vi3na1bita_lyric/
 │   │   │   └── f3d979edae456d88336968ef3ac0a2f8ca40d9
 │   │   ├── 4a/
 │   │   │   └── 8448d7459dc341dd7fdb836afc73acceca01c8
+│   │   ├── 4f/
+│   │   │   └── 7fbb2e76928aac3767bb6a2fabbdb5056d4198
 │   │   ├── 52/
 │   │   │   └── edd74dccb02d61900f3f3a6f8a71c2749b04b2
 │   │   ├── 54/
@@ -137,6 +147,8 @@ vi3na1bita_lyric/
 │   │   │   └── ccde770b153c26b8b8487ab7095d6df3e33071
 │   │   ├── 99/
 │   │   │   └── 9f5b0402fa4d657438b89d5bb10412efcef490
+│   │   ├── 9d/
+│   │   │   └── 0ceec21d687686e7598d13b99768d74a229d89
 │   │   ├── a4/
 │   │   │   └── bce7ebf9f57b918eb8cff46b74bf868cf0beca
 │   │   ├── aa/
@@ -151,6 +163,8 @@ vi3na1bita_lyric/
 │   │   │   └── 1af213af77b6df332125857a17c94119b0e93a
 │   │   ├── bd/
 │   │   │   └── 1588fd18277d790238d96f31ccbaeb4909bed1
+│   │   ├── ca/
+│   │   │   └── 84de1d477e7e9d49116b27056e86f59c23acc6
 │   │   ├── d0/
 │   │   │   └── 0491fd7e5bb6fa28c517a0bb32b8b506539d4d
 │   │   ├── d3/
@@ -159,6 +173,8 @@ vi3na1bita_lyric/
 │   │   │   └── caa9d2cc28ca9ac6cf8446a0000600e43a0f8d
 │   │   ├── eb/
 │   │   │   └── e569cbcceac6ad11a32c3d9cb9a9191d3137ed
+│   │   ├── f0/
+│   │   │   └── 0bf972b44d93e79d1fda8e716f76bc33ce9ab2
 │   │   ├── f2/
 │   │   │   └── 005e98c8bf0a1e4db01d8e51d93a8cfd8461a8
 │   │   ├── f6/
@@ -193,7 +209,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 18:20:37 UTC
+Сгенерировано: 2026-03-09 18:26:10 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -1078,7 +1094,7 @@ const SELF_FULL_REL = toUnix(path.relative(ROOT, FULL_FILE)), SELF_ADAPT_REL = t
 const TEXT_EXTS = new Set([".html",".htm",".css",".js",".mjs",".cjs",".ts",".tsx",".json",".webmanifest",".md",".txt",".yml",".yaml"]);
 const globToRegExp = pat => new RegExp("^" + pat.replace(/[.+^${}()|[\]\\]/g, "\\$").replace(/\*\*/g, "___GLOBSTAR___").replace(/\*/g, "[^/]*").replace(/___GLOBSTAR___/g, ".*") + "$");
 const EXCLUDE_FILES_PATTERNS = ["node_modules/**",".git/**",".meta/**","assets/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store","ai-rules.txt"].map(globToRegExp);
-const EXCLUDE_TREE_PATTERNS = ["node_modules/**",".git/**",".meta/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store"].map(globToRegExp);
+const EXCLUDE_TREE_PATTERNS = ["node_modules/**",".meta/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store"].map(globToRegExp);
 const PRIORITY = { critical: [/^karaoke-editor\.html?$/i,/^karaoke-editor\.js$/i,/^karaoke-editor\.css$/i,/^generate-index\.(js|mjs|cjs)$/i,/^\.github\/workflows\/.*\.ya?ml$/i], high: [/^AudioController\.(js|mjs|cjs|ts)$/i,/^GlobalState\.(js|mjs|cjs|ts)$/i,/^scripts\/.*\.(mjs|js|ts)$/i,/^performance\/.*\.(js|ts)$/i,/^.*\.(ya?ml)$/i], medium: [/^.*\.(js|mjs|cjs|ts|tsx|json|html?|css)$/i] };
 const isTextFile = rel => TEXT_EXTS.has(path.extname(rel).toLowerCase());
 const readText = rel => { try { return fs.readFileSync(path.join(ROOT, rel), "utf8"); } catch (e) { return `// read error: ${e.message}`; } };
