@@ -384,12 +384,13 @@ renderHeaders(){
 
     const mkBtn=(lbl,cls,title,cb)=>{const b=document.createElement('button');b.textContent=lbl;b.className=cls;b.title=title;b.onclick=cb;return b};
     const bV=mkBtn('V',tr.visible?'on':'','Показать/скрыть дорожку',()=>this.toggleTrackProp(tr.id,'visible'));
-    const bS=mkBtn('S',tr.solo?'sol':'','Solo — только эта дорожка',()=>this.toggleTrackProp(tr.id,'solo'));
+    const bMu=mkBtn('M',tr.muted?'locked':'','Mute — заглушить дорожку (не влияет на visible)',()=>this.toggleTrackProp(tr.id,'muted'));
+    const bS=mkBtn('S',tr.solo?'sol':'','Solo — только эта и другие solo дорожки',()=>this.toggleTrackProp(tr.id,'solo'));
     const bL=mkBtn('L',tr.locked?'locked':'','Заблокировать редактирование',()=>this.toggleTrackProp(tr.id,'locked'));
     const bE=mkBtn('E',tr.id===this.project.activeTrackId?'on':'','Активная дорожка для редактирования',()=>this.setActiveTrack(tr.id));
     const bC=mkBtn(this.collapsed[tr.id]?'▶':'▼','col-btn','Свернуть/развернуть дорожку',()=>this.toggleCollapse(tr.id));
 
-    div.append(dot,nm,tp,bV,bS,bL,bE,bC);
+    div.append(dot,nm,tp,bV,bMu,bS,bL,bE,bC);
     c.appendChild(div);
   });
 },
@@ -397,7 +398,7 @@ renderHeaders(){
 toggleTrackProp(id,prop){
   const tr=this.trackById(id);if(!tr)return;
   tr[prop]=!tr[prop];
-  if(prop==='solo'&&tr.solo)this.project.tracks.forEach(t=>{if(t.id!==id)t.solo=false});
+  // solo: НЕ сбрасываем другие — позволяем multi-solo
   this.markDirty();this.renderHeaders();this.renderTimeline();this.renderPreview();
 },
 
@@ -442,6 +443,7 @@ renderTimeline(){
 
   this.project.tracks.forEach((tr,ti)=>{
     if(!tr.visible)return;
+    if(tr.muted)return;
     if(soloActive&&!tr.solo)return;
     if(this.collapsed[tr.id])return;
     const color=tr.color||(tr.type==='line'?'#1e88e5':'#43a047');
@@ -795,9 +797,22 @@ renderInspector(){
     c.innerHTML='<p class="muted">Выберите элемент(ы)</p>';return;
   }
   const tr=this.trackById(this.selected.trackId);
+  const isReadonly=!tr||tr.locked||tr.id!==this.project.activeTrackId;
   const ids=[...this.selected.ids];
   const items=ids.map(id=>this.itemById(this.selected.trackId,id)).filter(Boolean);
   if(!items.length){c.innerHTML='<p class="muted">Нет данных</p>';return}
+  if(isReadonly&&ids.length===1){
+    const it=items[0];
+    c.innerHTML=`<div style="border:1px solid #4a3200;border-radius:6px;padding:8px;background:rgba(255,152,0,.06);margin-bottom:8px;font-size:11px;color:#ff9800">
+      🔒 Readonly — дорожка заблокирована или неактивна</div>
+    <div class="igr"><label>ID</label><span class="muted">${it.id}</span></div>
+    <div class="igr"><label>Тип</label><span>${it.kind} / ${tr?.name||''}</span></div>
+    <div class="igr"><label>Start</label><span>${it.start.toFixed(3)}s</span></div>
+    <div class="igr"><label>End</label><span>${it.end.toFixed(3)}s</span></div>
+    <div class="igr"><label>Duration</label><span>${(it.end-it.start).toFixed(3)}s</span></div>
+    <div class="igr"><label>Text</label><span>${this.esc(it.text)}</span></div>`;
+    return;
+  }
 
   if(ids.length===1){
     const it=items[0];
@@ -816,6 +831,9 @@ renderInspector(){
       <button class="btn" id="ins-chars-dist">Distribute Evenly</button></div>`;
     }
 
+    const isLine=it.kind==='line';
+    const isWord=it.kind==='word';
+    const isWordsTr=tr.type==='words';
     html+=`<div class="iact">
       <button class="btn pri" id="ins-apply">Apply</button>
       <button class="btn" id="ins-split">✂ Split</button>
@@ -823,7 +841,9 @@ renderInspector(){
       <button class="btn" id="ins-merge-next">Mrg Next ⊳</button>
       <button class="btn" id="ins-dup">⧉ Dup</button>
       <button class="btn" id="ins-del">🗑 Del</button>
-    </div>`;
+    </div>
+    ${isLine&&isWordsTr?`<div class="iact"><button class="btn" id="ins-words-from-line">→ Words from Line</button></div>`:''}
+    ${isWord&&isWordsTr?`<div class="iact"><button class="btn" id="ins-line-from-words">→ Collapse to Line</button></div>`:''}`;
 
     c.innerHTML=html;
     this.bindInspectorSingle(tr,it);
@@ -881,6 +901,8 @@ bindInspectorSingle(tr,it){
   ins('ins-merge-next')?.addEventListener('click',()=>this.mergeSelectedWithNext());
   ins('ins-dup')?.addEventListener('click',()=>this.duplicateSelected());
   ins('ins-del')?.addEventListener('click',()=>this.deleteSelected());
+  ins('ins-words-from-line')?.addEventListener('click',()=>this.createWordsFromLine(tr,it));
+  ins('ins-line-from-words')?.addEventListener('click',()=>this.collapseWordToLine(tr,it));
   if(it.kind==='word'){
     ins('ins-rebuild-chars')?.addEventListener('click',()=>this.rebuildCharsFromWord(tr,it));
     ins('ins-chars-dist')?.addEventListener('click',()=>this.distributeCharsEvenly(tr,it));
@@ -1189,6 +1211,13 @@ setupContext(){
   this.ui.ctxZoomSelection.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.zoomToSelection()};
   this.ui.ctxScrollSelection.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.scrollToSelection()};
   this.ui.ctxDelete.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.deleteSelected()};
+  this.ui.ctxSelTrack?.addEventListener('click',()=>{
+    this.ui.contextMenu.classList.add('hidden');
+    const tid=this.context.trackId,tr=this.trackById(tid);if(!tr)return;
+    this.selected.trackId=tid;
+    this.selected.ids=new Set(this.visibleItems(tr,this.ui.layerMode.value).map(i=>i.id));
+    this.renderTimeline();this.renderInspector();
+  });
 },
 
 batchCloseGapsCtx(){
@@ -1260,8 +1289,8 @@ updateVolumeReadout(){
 renderPreview(){
   const t=this.audioElement.currentTime||0;
   const hasSolo=this.project.tracks.some(x=>x.solo);
-  const lineTr=this.project.tracks.find(x=>x.type==='line'&&x.visible&&(!hasSolo||x.solo));
-  const wordsTr=this.project.tracks.find(x=>x.type==='words'&&x.visible&&(!hasSolo||x.solo));
+  const lineTr=this.project.tracks.find(x=>x.type==='line'&&x.visible&&!x.muted&&(!hasSolo||x.solo));
+  const wordsTr=this.project.tracks.find(x=>x.type==='words'&&x.visible&&!x.muted&&(!hasSolo||x.solo));
   const source=lineTr||wordsTr;
   if(!source){this.ui.lyricsContainer.innerHTML='<p class="muted">Нет данных</p>';return}
 
@@ -2013,6 +2042,34 @@ uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice
 num(v,def=0){const n=parseFloat(v);return isNaN(n)?def:n},
 esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')},
 base(n){return n.replace(/\.[^/.]+$/,'')},
+
+createWordsFromLine(tr,it){
+  if(it.kind!=='line'||tr.type!=='words')return;
+  const words=it.text.split(/\s+/).filter(Boolean);
+  if(!words.length)return;
+  this.pushHistory('Words from Line');
+  const dur=(it.end-it.start)/words.length;
+  words.forEach((w,i)=>{
+    tr.items.push({id:'W_'+this.uid(),kind:'word',lineId:it.id,
+      start:it.start+i*dur,end:it.start+(i+1)*dur-.005,text:w,chars:[]});
+  });
+  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+},
+
+collapseWordToLine(tr,it){
+  if(it.kind!=='word'||tr.type!=='words')return;
+  const line=tr.items.find(l=>l.kind==='line'&&l.id===it.lineId);if(!line)return;
+  this.pushHistory('Collapse to Line');
+  // remove all words for this line, keep only line
+  const wordsOfLine=tr.items.filter(i=>i.kind==='word'&&i.lineId===it.lineId);
+  if(wordsOfLine.length){
+    const minS=Math.min(...wordsOfLine.map(w=>w.start)),maxE=Math.max(...wordsOfLine.map(w=>w.end));
+    const txt=wordsOfLine.map(w=>w.text).join(' ');
+    line.start=Math.min(line.start,minS);line.end=Math.max(line.end,maxE);line.text=txt;
+    tr.items=tr.items.filter(i=>!(i.kind==='word'&&i.lineId===it.lineId));
+  }
+  this.clearSelection();this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+},
 
 recalcTrackLines(tr){
   // ensure words have correct lineId based on time overlap
