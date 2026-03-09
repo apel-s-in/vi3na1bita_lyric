@@ -438,10 +438,15 @@ renderTimeline(){
 findConflicts(){
   const set=new Set();
   this.project.tracks.forEach(t=>{
-    const items=[...t.items].sort((a,b)=>a.start-b.start);
-    for(let i=1;i<items.length;i++){
-      if(items[i].start<items[i-1].end-0.001){set.add(items[i].id);set.add(items[i-1].id)}
-    }
+    // проверяем конфликты отдельно по kind, иначе lines и words сравниваются между собой
+    const byKind={};
+    t.items.forEach(it=>{(byKind[it.kind]=byKind[it.kind]||[]).push(it)});
+    Object.values(byKind).forEach(group=>{
+      const sorted=[...group].sort((a,b)=>a.start-b.start);
+      for(let i=1;i<sorted.length;i++){
+        if(sorted[i].start<sorted[i-1].end-0.001){set.add(sorted[i].id);set.add(sorted[i-1].id)}
+      }
+    });
   });
   return set;
 },
@@ -462,7 +467,8 @@ syncPlayhead(){
   this.markPlayingItems(t);
   if(this.autoScroll&&!this.audioElement.paused&&!this.drag.active&&!this.playheadDrag.active)
     this.autoScrollToTime(t);
-  this.renderPreview();
+  // renderPreview только при воспроизведении, чтобы не дублировать при fullRender
+  if(!this.audioElement.paused)this.renderPreview();
 },
 
 startPlayheadDrag(e){
@@ -607,7 +613,8 @@ handleTimelineMouseDown(e){
     const sl=this.ui.timelineContainer.scrollLeft;
     const x=e.clientX-rect.left+sl;
     const t=this.snap(Math.max(0,x/this.zoom));
-    if(e.target===this.ui.rulerCanvas){this.audioElement.currentTime=t;this.syncPlayhead();return}
+    // ruler и waveform — seek, не marquee
+    if(e.target===this.ui.rulerCanvas||e.target===this.ui.waveCanvas){this.audioElement.currentTime=t;this.syncPlayhead();return}
     // begin marquee
     this.marquee={active:true,startX:e.clientX,startY:e.clientY};
     this.ui.selectionBox.style.left=(x-sl)+'px';
@@ -799,21 +806,25 @@ resolveSingleOverlap(trackId,itemId,side,mode){
   this.sortTrack(t);
   const it=this.item(trackId,itemId);if(!it)return;
   const sameKind=t.items.filter(x=>x.kind===it.kind&&x.id!==itemId).sort((a,b)=>a.start-b.start);
-  const idx=sameKind.findIndex(x=>x.start>it.start);
-  if(side==='end'&&idx>=0){
-    const nxt=sameKind[idx];
-    if(it.end>nxt.start){
-      if(mode==='ripple'){
-        const sh=it.end-nxt.start;
-        sameKind.slice(idx).forEach(x=>{x.start+=sh;x.end+=sh});
-      }else{it.end=nxt.start}
+  if(side==='end'){
+    // найти первый элемент правее текущего
+    const nxtIdx=sameKind.findIndex(x=>x.start>=it.start);
+    if(nxtIdx>=0){
+      const nxt=sameKind[nxtIdx];
+      if(it.end>nxt.start){
+        if(mode==='ripple'){const sh=it.end-nxt.start;sameKind.slice(nxtIdx).forEach(x=>{x.start+=sh;x.end+=sh})}
+        else{it.end=nxt.start}
+      }
     }
-  }else if(side==='start'&&idx-1>=0){
-    const prv=sameKind[idx-1>=-1?sameKind.length-1:idx-1];
-    if(prv&&it.start<prv.end){
-      if(mode==='ripple'){
-        const sh=prv.end-it.start;it.start+=sh;it.end+=sh;
-      }else{it.start=prv.end}
+  }else{
+    // найти последний элемент левее текущего
+    const prvIdx=sameKind.reduce((acc,x,i)=>x.end<=it.start?i:acc,-1);
+    if(prvIdx>=0){
+      const prv=sameKind[prvIdx];
+      if(it.start<prv.end){
+        if(mode==='ripple'){const sh=prv.end-it.start;it.start+=sh;it.end+=sh}
+        else{it.start=prv.end}
+      }
     }
   }
 },
@@ -900,7 +911,9 @@ duplicateSelected(){
     t.items.push(copy);newIds.add(copy.id);
   });
   if(t.type==='words')this.recalcTrackLines(t);
-  this.sortTrack(t);this.selected.ids=newIds;
+  this.sortTrack(t);
+  // важно: trackId должен быть установлен до fullRender
+  this.selected.trackId=t.id;this.selected.ids=newIds;
   this.pushHistory('Duplicate');this.markDirty(true);this.fullRender();this.updateInspector();
 },
 
@@ -908,8 +921,8 @@ addNewLine(){
   const t=this.activeTrack();if(!t)return;
   const time=this.audioElement.currentTime||0;
   const it={id:'NL_'+this.id(),kind:'line',start:time,end:time+2,text:'New Line'};
-  t.items.push(it);
   if(t.type==='words')it.lineId=it.id;
+  t.items.push(it);
   this.sortTrack(t);this.clearSelection(false);this.selected.trackId=t.id;this.selected.ids.add(it.id);
   this.pushHistory('AddLine');this.markDirty(true);this.fullRender();this.updateInspector();
 },
@@ -1356,8 +1369,8 @@ defaultKeymap(){
     'vzoomOut':       {key:'Alt+-',        desc:'Уменьшить вертикальный масштаб'},
     'seekLeft':       {key:'ArrowLeft',     desc:'Перемотать влево на 0.5s'},
     'seekRight':      {key:'ArrowRight',    desc:'Перемотать вправо на 0.5s'},
-    'seekLargeLeft':  {key:'Shift+ArrowLeft',  desc:'Перемотать влево на 5s'},
-    'seekLargeRight': {key:'Shift+ArrowRight', desc:'Перемотать вправо на 5s'},
+    'seekLargeLeft':  {key:'Ctrl+ArrowLeft',   desc:'Перемотать влево на 5s'},
+    'seekLargeRight': {key:'Ctrl+ArrowRight',  desc:'Перемотать вправо на 5s'},
     'splitAtPlayhead':{key:'S',             desc:'Разрезать элемент по playhead'},
     'mergePrev':      {key:'Shift+M',       desc:'Слить с предыдущим элементом'},
     'mergeNext':      {key:'M',             desc:'Слить со следующим элементом'},
@@ -1365,8 +1378,8 @@ defaultKeymap(){
     'deleteSelected': {key:'Delete',        desc:'Удалить выделенные элементы'},
     'selectAll':      {key:'Ctrl+A',        desc:'Выделить все элементы активной дорожки'},
     'deselect':       {key:'Ctrl+D',        desc:'Снять выделение'},
-    'nudgeLeft':      {key:'Shift+ArrowLeft', desc:'Сдвинуть выделение влево на шаг'},
-    'nudgeRight':     {key:'Shift+ArrowRight',desc:'Сдвинуть выделение вправо на шаг'},
+    'nudgeLeft':      {key:'Shift+ArrowLeft',  desc:'Сдвинуть выделение влево на шаг'},
+    'nudgeRight':     {key:'Shift+ArrowRight', desc:'Сдвинуть выделение вправо на шаг'},
     'undo':           {key:'Ctrl+Z',        desc:'Отменить последнее действие'},
     'redo':           {key:'Ctrl+Y',        desc:'Повторить отменённое действие'},
     'centerPlayhead': {key:'C',             desc:'Центрировать вид на playhead'},
@@ -1376,7 +1389,7 @@ defaultKeymap(){
     'gotoSel':        {key:'Home',          desc:'Перейти к началу выделения'},
     'toggleSnap':     {key:'N',             desc:'Включить / выключить привязку'},
     'toggleAutoScroll':{key:'L',            desc:'Включить / выключить авто-прокрутку'},
-    'toggleLoop':     {key:'Shift+L',       desc:'Включить / выключить петлю'},
+    'toggleLoop':     {key:'Shift+O',       desc:'Включить / выключить петлю'},
     'saveExport':     {key:'Ctrl+S',        desc:'Экспортировать активную дорожку'},
     'openHotkeys':    {key:'Ctrl+K',        desc:'Открыть редактор горячих клавиш'},
     'openHelp':       {key:'Ctrl+H',        desc:'Открыть справку'},
@@ -1385,7 +1398,7 @@ defaultKeymap(){
     'toggleLineVis':  {key:'Shift+1',       desc:'Показать/скрыть Line-дорожку'},
     'toggleWordsVis': {key:'Shift+2',       desc:'Показать/скрыть Words-дорожку'},
     'toggleSolo':     {key:'Shift+S',       desc:'Solo активной дорожки'},
-    'toggleLock':     {key:'Shift+L',       desc:'Заблокировать активную дорожку'},
+    'toggleLock':     {key:'Shift+K',       desc:'Заблокировать активную дорожку'},
     'addLine':        {key:'Ctrl+Shift+N',  desc:'Добавить новую строку в позиции playhead'},
     'addWord':        {key:'Ctrl+N',        desc:'Добавить новое слово'},
     'collapseTrack':  {key:'Shift+C',       desc:'Свернуть / развернуть активную дорожку'},
