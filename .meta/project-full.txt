@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-5c0070510eb941c08efb67f57139b957c20f148a.idx
-│   │       ├── pack-5c0070510eb941c08efb67f57139b957c20f148a.pack
-│   │       └── pack-5c0070510eb941c08efb67f57139b957c20f148a.rev
+│   │       ├── pack-c0e01c09a0461f756dc49fd86fc233627dd9443c.idx
+│   │       ├── pack-c0e01c09a0461f756dc49fd86fc233627dd9443c.pack
+│   │       └── pack-c0e01c09a0461f756dc49fd86fc233627dd9443c.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 20:31:09 UTC
+Сгенерировано: 2026-03-09 20:36:34 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -641,6 +641,7 @@ init(){
   this.updateVZoomReadout();
   this.updateVolumeReadout();
   this.updateSaveStatus('Saved',false);
+  this.pushHistory('Initial');
   this.checkDraftOnLaunch();
   this.startAutosaveLoop();
   this.fullRender();
@@ -960,7 +961,7 @@ async loadTrackJSON(file,forceType){
 },
 
 normalizeTrack(raw,forceType,name){
-  const t={id:'T_'+this.uid(),type:forceType,name:name||forceType,visible:true,solo:false,locked:false,muted:false,editable:true,items:[]};
+  const t={id:'T_'+this.uid(),type:forceType,name:name||forceType,visible:true,solo:false,locked:false,muted:false,items:[]};
   if(forceType==='line'){
     if(!Array.isArray(raw)||!raw.length||!('time'in raw[0]))throw Error('bad line json');
     raw.forEach((d,i)=>{
@@ -1300,10 +1301,6 @@ getNextNeighbor(tr,it){
   return idx>=0&&idx<same.length-1?same[idx+1]:null;
 },
 
-// Aliases for backward compat
-prevItem(tr,it){return this.getPrevNeighbor(tr,it)},
-nextItem(tr,it){return this.getNextNeighbor(tr,it)},
-
 applyFreeMove(sel,rawDelta){
   sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+rawDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+rawDelta)});
 },
@@ -1312,12 +1309,18 @@ applyNoOverlapMove(tr,sel,rawDelta){
   const selIds=new Set(sel.map(s=>s.item.id));
   const others=tr.items.filter(i=>!selIds.has(i.id));
   let d=rawDelta;
+  // Вычисляем максимально допустимый сдвиг без перекрытий
   sel.forEach(s=>{
-    const newS=s.origStart+d,newE=s.origEnd+d;
     others.forEach(o=>{
       if(o.kind!==s.item.kind)return;
-      if(d>0&&o.start>=s.origEnd-1e-9){d=Math.min(d,d-(newE-o.start));d=Math.max(d,0)}
-      if(d<0&&o.end<=s.origStart+1e-9){d=Math.max(d,d+(o.end-(s.origStart+d)));d=Math.min(d,0)}
+      if(d>0&&o.start>=s.origEnd-1e-9){
+        const maxD=o.start-s.origEnd;
+        d=Math.min(d,Math.max(0,maxD));
+      }
+      if(d<0&&o.end<=s.origStart+1e-9){
+        const minD=o.end-s.origStart;
+        d=Math.max(d,Math.min(0,minD));
+      }
     });
   });
   sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+d);s.item.end=Math.max(s.item.start+.02,s.origEnd+d)});
@@ -1534,7 +1537,8 @@ finalizeMarquee(){
 },
 
 rippleRight(tr,anchor,newEnd){
-  const delta=newEnd-this.drag.initial.end;if(Math.abs(delta)<1e-6)return;
+  const initEnd=this.drag?.initial?.end;if(initEnd===undefined)return;
+  const delta=newEnd-initEnd;if(Math.abs(delta)<1e-6)return;
   tr.items.filter(i=>i.kind===anchor.kind&&i.start>=anchor.end-1e-9&&i.id!==anchor.id)
     .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
 },
@@ -2337,14 +2341,18 @@ renderRecentList(){
     <div class="draft-row">
       <span class="draft-ts">${r.ts?new Date(r.ts).toLocaleString():'?'}</span>
       <span class="draft-info" title="${r.key}">${r.tracks||0} треков${r.name?' — '+r.name:''}</span>
-      <button class="btn" data-ri="${i}">Restore</button>
-      <button class="btn" data-ri-del="${i}">✕</button>
+      <button class="btn" data-act="restore" data-idx="${i}">Restore</button>
+      <button class="btn" data-act="del" data-idx="${i}">✕</button>
     </div>`).join('');
-  c.querySelectorAll('[data-ri]').forEach(btn=>{
-    btn.onclick=()=>{const r=list[+btn.dataset.ri];this._pendingDraftKey=r.key;this.ui.recentModal.classList.add('hidden');this.restoreDraftFromStorage(r.key,true)};
-  });
-  c.querySelectorAll('[data-ri-del]').forEach(btn=>{
-    btn.onclick=()=>{const r=list[+btn.dataset.riDel];localStorage.removeItem(r.key);this.removeFromRecent(r.key);this.renderRecentList()};
+  c.querySelectorAll('[data-act]').forEach(btn=>{
+    btn.onclick=()=>{
+      const r=list[+btn.dataset.idx];
+      if(btn.dataset.act==='restore'){
+        this._pendingDraftKey=r.key;this.ui.recentModal.classList.add('hidden');this.restoreDraftFromStorage(r.key,true);
+      }else{
+        localStorage.removeItem(r.key);this.removeFromRecent(r.key);this.renderRecentList();
+      }
+    };
   });
 },
 
@@ -2642,6 +2650,8 @@ autoFixOverlaps(){
 
 /* ─── virtual keyboard modal ─────────────────────────────────────── */
 openVkbdModal(){
+  // Убираем предыдущий listener если был
+  if(this._vkbdKeyHandler)document.removeEventListener('keydown',this._vkbdKeyHandler);
   const km=this.keymap,rev={};
   Object.entries(km).forEach(([cmd,cfg])=>{if(cfg.key)rev[cfg.key]=(rev[cfg.key]||[]).concat(cmd)});
   const rows=[
