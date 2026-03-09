@@ -15,12 +15,18 @@
       <label class="btn">📝 Words JSON<input id="words-upload" type="file" accept=".json,application/json" hidden></label>
       <span class="sep"></span>
       <button class="btn pri" id="btn-export-active">⬇ Export Active</button>
-      <button class="btn" id="btn-export-line">Export Line</button>
-      <button class="btn" id="btn-export-words">Export Words</button>
-      <button class="btn" id="btn-export-all">Export All</button>
+      <button class="btn" id="btn-export-line">Line</button>
+      <button class="btn" id="btn-export-words">Words</button>
+      <button class="btn" id="btn-export-all">All</button>
+      <button class="btn" id="btn-export-zip">ZIP</button>
+      <span class="sep"></span>
+      <button class="btn" id="btn-save-session">💾 Save Session</button>
+      <button class="btn" id="btn-load-session">📂 Load Session</button>
+      <input id="session-upload" type="file" accept=".kep,.json" hidden>
       <span class="sep"></span>
       <button class="btn" id="btn-validate">✓ Validate</button>
       <button class="btn" id="btn-restore-session">⟳ Restore</button>
+      <button class="btn" id="btn-recent">🕐 Drafts</button>
       <button class="btn" id="btn-hotkeys">⌨ Hotkeys</button>
       <button class="btn" id="btn-help">? Help</button>
     </div>
@@ -28,6 +34,7 @@
       <button class="btn pri" id="btn-play">▶ Play</button>
       <button class="btn" id="btn-stop">■ Stop</button>
       <button class="btn" id="btn-loop">⇄ Loop</button>
+      <button class="btn" id="btn-loop-clear">✕ Loop</button>
       <span class="sep"></span>
       <button class="btn" id="btn-mute">🔊</button>
       <input id="volume-slider" type="range" min="0" max="100" value="100" style="width:70px">
@@ -53,10 +60,10 @@
       <input id="vzoom-slider" type="range" min="70" max="220" value="100" style="width:60px">
       <span class="ro" id="vzoom-readout">100%</span>
       <span class="sep"></span>
-      <button class="btn" id="btn-center-playhead">◎</button>
+      <button class="btn" id="btn-center-playhead">◎ Center</button>
       <button class="btn" id="btn-fit-song">Fit</button>
-      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
-      <button class="btn" id="btn-scroll-selection">→Sel</button>
+      <button class="btn" id="btn-zoom-selection">⊡ Zoom Sel</button>
+      <button class="btn" id="btn-scroll-selection">→ Sel</button>
       <button class="btn" id="btn-goto-selection">Go Sel</button>
       <span class="sep"></span>
       <span>Snap:</span>
@@ -117,6 +124,7 @@
       <canvas id="grid-canvas"></canvas>
       <canvas id="waveform-canvas"></canvas>
       <div class="playhead" id="playhead"><div class="playhead-handle" id="playhead-handle"></div></div>
+      <div class="loop-region" id="loop-region"></div>
       <div id="selection-box" class="selbox hidden"></div>
       <div class="track-headers" id="track-headers"></div>
       <div id="tracks-container" class="tracks"></div>
@@ -151,6 +159,11 @@
   <div class="ctx-item" id="ctx-add-line">+ Add New Line</div>
   <div class="ctx-item" id="ctx-add-word">+ Add New Word</div>
   <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-sub-hdr">Batch (selection)</div>
+  <div class="ctx-item" id="ctx-batch-close">Close Gaps</div>
+  <div class="ctx-item" id="ctx-batch-dist">Distribute Evenly</div>
+  <div class="ctx-item" id="ctx-batch-norm">Normalize Duration…</div>
+  <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-move-playhead">→ Move to Playhead</div>
   <div class="ctx-item" id="ctx-zoom-selection">⊡ Zoom to Selection</div>
   <div class="ctx-item" id="ctx-scroll-selection">↔ Scroll to Selection</div>
@@ -162,11 +175,24 @@
 <div id="restore-modal" class="modal hidden">
   <div class="modal-card">
     <h3>Найден черновик</h3>
-    <p>Восстановить последнюю автосохранённую сессию?</p>
+    <p id="restore-modal-desc">Восстановить последнюю автосохранённую сессию?</p>
     <div class="modal-actions">
       <button class="btn pri" id="btn-restore-yes">Restore</button>
       <button class="btn" id="btn-restore-no">Ignore</button>
       <button class="btn" id="btn-restore-delete">Delete Draft</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recent drafts modal -->
+<div id="recent-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>🕐 Recent Drafts</h3>
+    <p>Список автосохранённых черновиков (последние 10).</p>
+    <div id="recent-list" class="hotkeys-list"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-recent-clear-all">Clear All</button>
+      <button class="btn pri" id="btn-recent-close">Close</button>
     </div>
   </div>
 </div>
@@ -176,7 +202,10 @@
   <div class="modal-card hotkeys-card">
     <h3>⌨ Горячие клавиши</h3>
     <p>Нажми «Set», затем нажми нужную клавишу. «Clear» — очистить. Конфликты выделены оранжевым.</p>
-    <div id="hotkeys-conflicts" style="margin:0 0 8px 0;font-size:12px;color:#ff9800;min-height:16px"></div>
+    <div id="hotkeys-conflicts" style="margin:0 0 8px;font-size:12px;color:#ff9800;min-height:16px"></div>
+    <div style="margin-bottom:6px;display:flex;gap:6px">
+      <input id="hk-search" type="text" placeholder="Поиск команды…" style="flex:1">
+    </div>
     <div id="hotkeys-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn" id="btn-hotkeys-reset">Reset Default</button>
@@ -191,6 +220,10 @@
   <div class="modal-card hotkeys-card">
     <h3>✓ Validation / QA</h3>
     <p>Проверка таймингов, пересечений, конфликтов и структуры перед экспортом.</p>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn" id="btn-validation-fix">Auto-Fix Overlaps</button>
+      <button class="btn" id="btn-validation-rerun">↺ Re-run</button>
+    </div>
     <div id="validation-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn" id="btn-validation-export">Export Active</button>
@@ -213,8 +246,8 @@
 
 <!-- Track rename modal -->
 <div id="rename-modal" class="modal hidden">
-  <div class="modal-card" style="width:320px">
-    <h3>Rename Track</h3>
+  <div class="modal-card" style="width:340px">
+    <h3>Track Settings</h3>
     <div class="igr"><label>Name</label><input id="rename-input" type="text" style="width:100%"></div>
     <div class="igr"><label>Color</label><input id="rename-color" type="color" value="#1e88e5"></div>
     <div class="modal-actions">
@@ -224,8 +257,23 @@
   </div>
 </div>
 
+<!-- Loop markers modal -->
+<div id="loop-modal" class="modal hidden">
+  <div class="modal-card" style="width:360px">
+    <h3>⇄ Loop Region</h3>
+    <div class="irow">
+      <div class="igr"><label>In (s)</label><input id="loop-in-val" type="number" step="0.01" style="width:100%"></div>
+      <div class="igr"><label>Out (s)</label><input id="loop-out-val" type="number" step="0.01" style="width:100%"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-loop-ok">Set Loop</button>
+      <button class="btn" id="btn-loop-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <audio id="audio-player"></audio>
-<div id="loader" class="loader hidden">Processing...</div>
+<div id="loader" class="loader hidden">Processing…</div>
 <script src="karaoke-editor.js"></script>
 </body>
 </html>
