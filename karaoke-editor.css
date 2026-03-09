@@ -76,6 +76,8 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .track-item.playing{background:var(--act);border-color:#fff;z-index:15;color:#fff;text-shadow:none}
 .track-item.ghost{opacity:.3;pointer-events:none}
 .track-item.conflict{box-shadow:0 0 0 2px #ff6b35 inset;border-color:#ff6b35}
+.track-item.locked-ref{opacity:.6;cursor:default;filter:saturate(.5)}
+.track-item.editable-active{box-shadow:0 0 0 1px rgba(30,136,229,.4) inset}
 
 /* HANDLES */
 .handle{position:absolute;top:0;bottom:0;width:8px;background:rgba(255,255,255,.08);cursor:ew-resize;z-index:5}
