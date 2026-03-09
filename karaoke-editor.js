@@ -14,7 +14,7 @@ hotkeysWaiting:null,
 keymap:{},
 ui:{},
 
-init(){this.cache();this.audioElement=this.ui.audioPlayer;this.restoreUiPrefs();this.initKeymap();this.bind();this.applyVol();this.updateZoomReadout();this.updateVZoomReadout();this.updateVolumeReadout();this.updateSaveStatus('Saved',false);this.checkDraftOnLaunch();this.startAutosaveLoop();this.fullRender()},
+init(){this.cache();this.audioElement=this.ui.audioPlayer;this.initKeymap();this.restoreUiPrefs();this.bind();this.applyVol();this.updateZoomReadout();this.updateVZoomReadout();this.updateVolumeReadout();this.updateSaveStatus('Saved',false);this.checkDraftOnLaunch();this.startAutosaveLoop();this.fullRender()},
 cache(){const g=id=>document.getElementById(id);this.ui={
 audioUpload:g('audio-upload'),lineUpload:g('line-upload'),wordsUpload:g('words-upload'),
 btnExportActive:g('btn-export-active'),btnExportLine:g('btn-export-line'),btnExportWords:g('btn-export-words'),btnExportAll:g('btn-export-all'),
@@ -166,7 +166,13 @@ setActiveTrack(id){const t=this.track(id);if(t&&!t.locked){this.project.activeTr
 
 visibleTracks(){
 const solo=this.project.tracks.filter(t=>t.solo&&t.visible);
-return solo.length?solo:this.project.tracks.filter(t=>t.visible)
+const out=solo.length?solo:this.project.tracks.filter(t=>t.visible);
+if(this.selected.trackId&&!out.find(t=>t.id===this.selected.trackId)){this.selected.trackId=this.project.activeTrackId;this.selected.ids.clear()}
+if(this.project.activeTrackId&&!out.find(t=>t.id===this.project.activeTrackId)){
+const next=out.find(t=>!t.locked)||out[0]||null;
+this.project.activeTrackId=next?next.id:null
+}
+return out
 },
 
 renderTimeline(){
@@ -384,12 +390,12 @@ markDirty(v=true){this.dirty=v;this.updateSaveStatus(v?'Unsaved changes':'Saved'
 updateSaveStatus(t,d){this.ui.saveStatus.textContent=t;this.ui.saveStatus.classList.toggle('dirty',!!d);this.ui.saveStatus.classList.toggle('error',String(t).toLowerCase().includes('error'))},
 startAutosaveLoop(){this.restartAutosaveLoop()},
 restartAutosaveLoop(){if(this.autosaveTimer)clearInterval(this.autosaveTimer);this.autosaveTimer=setInterval(()=>{if(!this.autosaveEnabled||!this.project.tracks.length)return;this.saveDraftToStorage()},Math.max(3,this.autosaveIntervalSec)*1000)},
-saveDraftToStorage(){try{const draft={version:3,duration:this.duration,audioFileName:this.audioFileName,currentTime:this.audioElement.currentTime||0,project:this.project,selected:{trackId:this.selected.trackId,ids:[...this.selected.ids]},ui:{zoom:this.zoom,verticalZoom:this.verticalZoom,scrollLeft:this.ui.timelineContainer.scrollLeft,sidebarWidth:this.ui.sidebar.style.width||'',inspectorFlex:this.ui.inspectorPanel.style.flex||'',autoScroll:this.autoScroll,snapStep:this.snapStep,dragMode:this.ui.dragMode.value,autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,volume:this.volume,muted:this.muted,loop:this.loop,keymap:this.keymap};localStorage.setItem(this.autosaveKey,JSON.stringify(draft));if(this.dirty)this.updateSaveStatus('Autosaved draft',true)}catch(e){console.error('Autosave failed',e)}},
+saveDraftToStorage(){try{const draft={version:3,duration:this.duration,audioFileName:this.audioFileName,currentTime:this.audioElement.currentTime||0,project:this.project,selected:{trackId:this.selected.trackId,ids:[...this.selected.ids]},ui:{zoom:this.zoom,verticalZoom:this.verticalZoom,scrollLeft:this.ui.timelineContainer.scrollLeft,sidebarWidth:this.ui.sidebar.style.width||'',inspectorFlex:this.ui.inspectorPanel.style.flex||'',autoScroll:this.autoScroll,snapStep:this.snapStep,dragMode:this.ui.dragMode.value,autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,volume:this.volume,muted:this.muted,loop:this.loop}};localStorage.setItem(this.autosaveKey,JSON.stringify(draft));if(this.dirty)this.updateSaveStatus('Autosaved draft',true)}catch(e){console.error('Autosave failed',e)}},
 checkDraftOnLaunch(){if(localStorage.getItem(this.autosaveKey))this.ui.restoreModal.classList.remove('hidden')},
 restoreDraftFromStorage(explicit=false){
 try{const raw=localStorage.getItem(this.autosaveKey);if(!raw){if(explicit)alert('No draft found.');return}const d=JSON.parse(raw);if(!d||!d.project){if(explicit)alert('Draft invalid.');return}
 this.project=d.project;this.duration=d.duration||this.duration||0;this.audioFileName=d.audioFileName||this.audioFileName;
-if(d.ui){this.zoom=d.ui.zoom||this.zoom;this.verticalZoom=d.ui.verticalZoom||this.verticalZoom;this.autoScroll=d.ui.autoScroll??this.autoScroll;this.snapStep=d.ui.snapStep??this.snapStep;this.volume=d.ui.volume??this.volume;this.muted=d.ui.muted??this.muted;this.autosaveEnabled=d.ui.autosaveEnabled??this.autosaveEnabled;this.autosaveIntervalSec=d.ui.autosaveIntervalSec??this.autosaveIntervalSec;this.loop=d.ui.loop||this.loop;this.keymap=d.ui.keymap||this.keymap;this.ui.dragMode.value=d.ui.dragMode||this.ui.dragMode.value;this.ui.zoomSlider.value=String(this.zoom);this.ui.vzoomSlider.value=String(Math.round(this.verticalZoom*100));this.ui.autoScroll.checked=!!this.autoScroll;this.ui.snapSelect.value=String(this.snapStep);this.ui.volumeSlider.value=String(Math.round(this.volume*100));this.ui.autosaveEnabled.checked=!!this.autosaveEnabled;this.ui.autosaveInterval.value=String(this.autosaveIntervalSec);if(d.ui.sidebarWidth)this.ui.sidebar.style.width=d.ui.sidebarWidth;if(d.ui.inspectorFlex)this.ui.inspectorPanel.style.flex=d.ui.inspectorFlex}
+if(d.ui){this.zoom=d.ui.zoom||this.zoom;this.verticalZoom=d.ui.verticalZoom||this.verticalZoom;this.autoScroll=d.ui.autoScroll??this.autoScroll;this.snapStep=d.ui.snapStep??this.snapStep;this.volume=d.ui.volume??this.volume;this.muted=d.ui.muted??this.muted;this.autosaveEnabled=d.ui.autosaveEnabled??this.autosaveEnabled;this.autosaveIntervalSec=d.ui.autosaveIntervalSec??this.autosaveIntervalSec;this.loop=d.ui.loop||this.loop;this.ui.dragMode.value=d.ui.dragMode||this.ui.dragMode.value;this.ui.zoomSlider.value=String(this.zoom);this.ui.vzoomSlider.value=String(Math.round(this.verticalZoom*100));this.ui.autoScroll.checked=!!this.autoScroll;this.ui.snapSelect.value=String(this.snapStep);this.ui.volumeSlider.value=String(Math.round(this.volume*100));this.ui.autosaveEnabled.checked=!!this.autosaveEnabled;this.ui.autosaveInterval.value=String(this.autosaveIntervalSec);if(d.ui.sidebarWidth)this.ui.sidebar.style.width=d.ui.sidebarWidth;if(d.ui.inspectorFlex)this.ui.inspectorPanel.style.flex=d.ui.inspectorFlex}
 if(d.selected){this.selected.trackId=d.selected.trackId||null;this.selected.ids=new Set(d.selected.ids||[])}
 this.applyVol();this.pushHistory('Restore Draft');this.fullRender();if(d.currentTime!=null){this.audioElement.currentTime=Math.min(this.duration||d.currentTime,d.currentTime);this.syncPlayhead()}if(d.ui&&typeof d.ui.scrollLeft==='number')this.ui.timelineContainer.scrollLeft=d.ui.scrollLeft;this.updateZoomReadout();this.updateVZoomReadout();this.updateVolumeReadout();this.markDirty(true);this.restartAutosaveLoop()}catch(e){console.error(e);if(explicit)alert('Failed to restore draft.')}},
 pushHistory(){const s=JSON.parse(JSON.stringify(this.project));this.history=this.history.slice(0,this.historyIndex+1);this.history.push(s);if(this.history.length>100)this.history.shift();else this.historyIndex++},
@@ -399,6 +405,7 @@ restoreHistory(){this.project=JSON.parse(JSON.stringify(this.history[this.histor
 handleHotkeys(e){
 const tag=document.activeElement?.tagName;
 if(this.captureHotkey(e))return;
+if(!this.ui.hotkeysModal.classList.contains('hidden')&&e.code==='Escape'){e.preventDefault();this.closeHotkeysModal();return}
 if(tag==='INPUT'||tag==='TEXTAREA')return;
 
 if(this.matchHotkey(e,'exportActive')){e.preventDefault();this.exportTrack(this.activeTrack());return}
@@ -451,7 +458,7 @@ recalcTrackLines(t){if(t.type!=='words')return;this.lines(t).forEach(l=>{const w
 sortTrack(t){t.items.sort((a,b)=>a.kind!==b.kind?(a.kind==='line'?-1:1):((a.lineId||'').localeCompare(b.lineId||''))||a.start-b.start)},
 clampTrack(t){t.items.forEach(i=>{i.start=Math.max(0,this.num(i.start,0));i.end=Math.max(i.start+.03,this.num(i.end,i.start+.03))})},
 clearSelection(r=true){this.selected.trackId=this.project.activeTrackId;this.selected.ids.clear();if(r){this.renderTimeline();this.updateInspector();this.renderPreview()}},
-selectAll(){const t=this.activeTrack();if(!t)return;this.selected.trackId=t.id;this.selected.ids.clear();t.items.forEach(i=>this.selected.ids.add(i.id));this.renderTimeline();this.updateInspector();this.renderPreview()},
+selectAll(){const t=this.activeTrack();if(!t)return;this.selected.trackId=t.id;this.selected.ids.clear();(t.type==='words'?t.items.filter(i=>i.kind==='word'):t.items).forEach(i=>this.selected.ids.add(i.id));this.renderTimeline();this.updateInspector();this.renderPreview()},
 selectionRange(){const t=this.selectedTrack();if(!t||!this.selected.ids.size)return null;const arr=[...this.selected.ids].map(id=>this.byId(t.id,id)).filter(Boolean);return{start:Math.min(...arr.map(i=>i.start)),end:Math.max(...arr.map(i=>i.end))}},
 findNearestWordsLine(t,start,end){
 const ls=this.lines(t);if(!ls.length)return null;
@@ -479,8 +486,8 @@ clearCanvas(c){const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height)},
 updateZoomReadout(){this.ui.zoomReadout.textContent=`${this.zoom} px/s`},
 updateVZoomReadout(){this.ui.vzoomReadout.textContent=`${Math.round(this.verticalZoom*100)}%`},
 updateVolumeReadout(){this.ui.volumeReadout.textContent=`${Math.round(this.volume*100)}%`},
-persistUiPrefs(){localStorage.setItem(this.uiStateKey,JSON.stringify({zoom:this.zoom,verticalZoom:this.verticalZoom,autoScroll:this.autoScroll,snapStep:this.snapStep,volume:this.volume,muted:this.muted,autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,sidebarWidth:this.ui.sidebar.style.width||'',inspectorFlex:this.ui.inspectorPanel.style.flex||'',dragMode:this.ui.dragMode.value,keymap:this.keymap}))},
-restoreUiPrefs(){try{const raw=localStorage.getItem(this.uiStateKey);if(!raw)return;const p=JSON.parse(raw);if(p.zoom)this.zoom=p.zoom;if(p.verticalZoom)this.verticalZoom=p.verticalZoom;if(typeof p.autoScroll==='boolean')this.autoScroll=p.autoScroll;if(typeof p.snapStep==='number')this.snapStep=p.snapStep;if(typeof p.volume==='number')this.volume=p.volume;if(typeof p.muted==='boolean')this.muted=p.muted;if(typeof p.autosaveEnabled==='boolean')this.autosaveEnabled=p.autosaveEnabled;if(typeof p.autosaveIntervalSec==='number')this.autosaveIntervalSec=p.autosaveIntervalSec;this.ui.zoomSlider.value=String(this.zoom);this.ui.vzoomSlider.value=String(Math.round(this.verticalZoom*100));this.ui.autoScroll.checked=!!this.autoScroll;this.ui.snapSelect.value=String(this.snapStep);this.ui.volumeSlider.value=String(Math.round(this.volume*100));this.ui.autosaveEnabled.checked=!!this.autosaveEnabled;this.ui.autosaveInterval.value=String(this.autosaveIntervalSec);if(p.sidebarWidth)this.ui.sidebar.style.width=p.sidebarWidth;if(p.inspectorFlex)this.ui.inspectorPanel.style.flex=p.inspectorFlex;if(p.dragMode)this.ui.dragMode.value=p.dragMode;if(p.keymap)this.keymap=p.keymap}catch(e){console.warn('prefs restore failed',e)}},
+persistUiPrefs(){localStorage.setItem(this.uiStateKey,JSON.stringify({zoom:this.zoom,verticalZoom:this.verticalZoom,autoScroll:this.autoScroll,snapStep:this.snapStep,volume:this.volume,muted:this.muted,autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,sidebarWidth:this.ui.sidebar.style.width||'',inspectorFlex:this.ui.inspectorPanel.style.flex||'',dragMode:this.ui.dragMode.value}))},
+restoreUiPrefs(){try{const raw=localStorage.getItem(this.uiStateKey);if(!raw)return;const p=JSON.parse(raw);if(p.zoom)this.zoom=p.zoom;if(p.verticalZoom)this.verticalZoom=p.verticalZoom;if(typeof p.autoScroll==='boolean')this.autoScroll=p.autoScroll;if(typeof p.snapStep==='number')this.snapStep=p.snapStep;if(typeof p.volume==='number')this.volume=p.volume;if(typeof p.muted==='boolean')this.muted=p.muted;if(typeof p.autosaveEnabled==='boolean')this.autosaveEnabled=p.autosaveEnabled;if(typeof p.autosaveIntervalSec==='number')this.autosaveIntervalSec=p.autosaveIntervalSec;this.ui.zoomSlider.value=String(this.zoom);this.ui.vzoomSlider.value=String(Math.round(this.verticalZoom*100));this.ui.autoScroll.checked=!!this.autoScroll;this.ui.snapSelect.value=String(this.snapStep);this.ui.volumeSlider.value=String(Math.round(this.volume*100));this.ui.autosaveEnabled.checked=!!this.autosaveEnabled;this.ui.autosaveInterval.value=String(this.autosaveIntervalSec);if(p.sidebarWidth)this.ui.sidebar.style.width=p.sidebarWidth;if(p.inspectorFlex)this.ui.inspectorPanel.style.flex=p.inspectorFlex;if(p.dragMode)this.ui.dragMode.value=p.dragMode}catch(e){console.warn('prefs restore failed',e)}},
 defaultKeymap(){
 return{
 playPause:{key:'Space',ctrl:false,shift:false,alt:false,label:'Play/Pause',desc:'Запуск или пауза воспроизведения'},
@@ -552,7 +559,7 @@ return({Space:'Space',Equal:'+',Minus:'-',BracketLeft:'[',BracketRight:']',Arrow
 },
 matchHotkey(e,name){
 const hk=this.keymap[name];if(!hk)return false;
-return e.code===hk.key&&!!e.ctrlKey===!!hk.ctrl&&!!e.shiftKey===!!hk.shift&&!!e.altKey===!!hk.alt
+return e.code===hk.key&&!!(e.ctrlKey||e.metaKey)===!!hk.ctrl&&!!e.shiftKey===!!hk.shift&&!!e.altKey===!!hk.alt
 },
 captureHotkey(e){
 if(!this.hotkeysWaiting)return false;
@@ -566,7 +573,8 @@ return true
 batchMoveSelected(delta){
 const t=this.selectedTrack();if(!t||!this.selected.ids.size)return;
 [...this.selected.ids].forEach(id=>{const it=this.byId(t.id,id);if(!it)return;const dur=it.end-it.start;it.start=Math.max(0,this.snap(it.start+delta));it.end=it.start+dur});
-if(this.ui.dragMode.value!=='free')this.resolveNoOverlap(t,[...this.selected.ids],'body');
+if(this.ui.dragMode.value==='keep')this.resolveNoOverlap(t,[...this.selected.ids],'body');
+if(this.ui.dragMode.value==='ripple')this.resolveNoOverlap(t,[...this.selected.ids],'body');
 if(t.type==='words'){this.recalcTrackLines(t);[...this.selected.ids].forEach(id=>{const it=this.byId(t.id,id);if(it?.kind==='word')this.rebuildParentLine(t,it)})}
 this.sortTrack(t);this.pushHistory('Batch Move');this.markDirty(true);this.fullRender();this.updateInspector()
 },
@@ -574,6 +582,7 @@ batchSetGap(gap){
 const t=this.selectedTrack();if(!t||this.selected.ids.size<2)return;
 const arr=[...this.selected.ids].map(id=>this.byId(t.id,id)).filter(Boolean).sort((a,b)=>a.start-b.start);
 for(let i=1;i<arr.length;i++){const prev=arr[i-1],cur=arr[i],dur=cur.end-cur.start;cur.start=prev.end+gap;cur.end=cur.start+dur}
+this.resolveNoOverlap(t,[...this.selected.ids],'body');
 if(t.type==='words'){this.recalcTrackLines(t);arr.forEach(it=>{if(it.kind==='word')this.rebuildParentLine(t,it)})}
 this.sortTrack(t);this.pushHistory('Batch Gap');this.markDirty(true);this.fullRender();this.updateInspector()
 },
