@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-e0fb46cbb6f3ff48120414b6d3d8097f5aca1ba0.idx
-│   │       ├── pack-e0fb46cbb6f3ff48120414b6d3d8097f5aca1ba0.pack
-│   │       └── pack-e0fb46cbb6f3ff48120414b6d3d8097f5aca1ba0.rev
+│   │       ├── pack-9454cfa43f393b623fa9c7d2e0b58c8be802faa0.idx
+│   │       ├── pack-9454cfa43f393b623fa9c7d2e0b58c8be802faa0.pack
+│   │       └── pack-9454cfa43f393b623fa9c7d2e0b58c8be802faa0.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 20:29:13 UTC
+Сгенерировано: 2026-03-09 20:30:30 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -625,13 +625,14 @@ loop:{enabled:false,start:null,end:null},
 hotkeysWaiting:null,
 keymap:{},
 collapsed:{},
-trackColors:{},
 ui:{},
+commands:{},
 
 /* ─── boot ───────────────────────────────────────────────────────── */
 init(){
   this.cache();
   this.audioElement=this.ui.audioPlayer;
+  this.initCommands();
   this.initKeymap();
   this.restoreUiPrefs();
   this.bind();
@@ -674,8 +675,7 @@ cache(){
     rulerCanvas:g('ruler-canvas'),gridCanvas:g('grid-canvas'),waveCanvas:g('waveform-canvas'),
     tracksContainer:g('tracks-container'),trackHeaders:g('track-headers'),
     playhead:g('playhead'),playheadHandle:g('playhead-handle'),
-    loopRegion:g('loop-region'),
-    selectionBox:g('selection-box'),
+    loopRegion:g('loop-region'),selectionBox:g('selection-box'),
     sidebar:g('sidebar'),sidebarResizer:g('sidebar-resizer'),
     inspectorPanel:g('inspector'),inspectorContent:g('inspector-content'),
     previewResizer:g('preview-resizer'),lyricsContainer:g('lyrics-container'),
@@ -708,14 +708,106 @@ cache(){
   };
 },
 
+/* ─── command layer ──────────────────────────────────────────────── */
+initCommands(){
+  const A=this;
+  this.commands={
+    playPause(){A.togglePlay()},
+    stop(){A.audioElement.pause();A.audioElement.currentTime=0;A.syncPlayhead();A.ui.btnPlay.textContent='▶ Play'},
+    zoomIn(){A.setZoom(A.zoom+10,true)},
+    zoomOut(){A.setZoom(A.zoom-10,true)},
+    vzoomIn(){A.setVerticalZoom(A.verticalZoom+.1)},
+    vzoomOut(){A.setVerticalZoom(A.verticalZoom-.1)},
+    seekLeft(){A.audioElement.currentTime=Math.max(0,A.audioElement.currentTime-.1);A.syncPlayhead()},
+    seekRight(){A.audioElement.currentTime=Math.min(A.duration||9999,A.audioElement.currentTime+.1);A.syncPlayhead()},
+    seekLeftBig(){A.audioElement.currentTime=Math.max(0,A.audioElement.currentTime-1);A.syncPlayhead()},
+    seekRightBig(){A.audioElement.currentTime=Math.min(A.duration||9999,A.audioElement.currentTime+1);A.syncPlayhead()},
+    nudgeLeft(){A.nudgeSelected(-.05)},
+    nudgeRight(){A.nudgeSelected(.05)},
+    stretchLeft(){A.stretchSelected('left',-.05)},
+    stretchRight(){A.stretchSelected('right',.05)},
+    split(){A.splitAtPlayhead()},
+    mergeNext(){A.mergeSelectedWithNext()},
+    mergePrev(){A.mergeSelectedWithPrev()},
+    duplicate(){A.duplicateSelected()},
+    deleteSelected(){A.deleteSelected()},
+    selectAll(){A.selectAll()},
+    deselect(){A.clearSelection()},
+    undo(){A.undo()},
+    redo(){A.redo()},
+    centerPlayhead(){A.centerOnPlayhead()},
+    fitSong(){A.fitSong()},
+    zoomSelection(){A.zoomToSelection()},
+    scrollSelection(){A.scrollToSelection()},
+    gotoSelStart(){A.gotoSelectionStart()},
+    toggleAutoscroll(){A.autoScroll=!A.autoScroll;A.ui.autoScroll.checked=A.autoScroll},
+    toggleSnap(){const v=A.snapStep?0:.25;A.snapStep=v;A.ui.snapSelect.value=v},
+    exportActive(){A.exportTrack(A.activeTrack())},
+    openHotkeys(){A.openHotkeysModal()},
+    switchTrack(){A.switchActiveTrack()},
+    toggleLineVis(){const tr=A.trackByType('line');if(tr)A.toggleTrackProp(tr.id,'visible')},
+    toggleWordsVis(){const tr=A.trackByType('words');if(tr)A.toggleTrackProp(tr.id,'visible')},
+    soloActive(){const tr=A.activeTrack();if(tr)A.toggleTrackProp(tr.id,'solo')},
+    lockActive(){const tr=A.activeTrack();if(tr)A.toggleTrackProp(tr.id,'locked')},
+    loopToggle(){if(A.loop.enabled)A.clearLoop();else A.openLoopModal()},
+    addLine(){A.addNewLine()},
+    addWord(){A.addNewWord()},
+    validate(){A.openValidationModal()},
+    help(){A.openHelpModal()},
+    // context-only commands
+    editText(){
+      const it=A.itemById(A.context.trackId,A.context.itemId);if(!it)return;
+      const t=prompt('Текст:',it.text);
+      if(t!==null){A.pushHistory('Edit Text');it.text=t;A.markDirty();A.afterEdit()}
+    },
+    splitAtCursor(){A.splitAtCursor(A.context.cursorX)},
+    batchCloseGaps(){A.batchCloseGapsCtx()},
+    batchDistribute(){
+      const tr=A.activeTrack();if(tr&&A.selected.ids.size>1){
+        const items=[...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean);
+        A.distributeItemsEvenly(items);
+      }
+    },
+    batchNormalize(){
+      const dur=A.num(prompt('Длительность (s):','1.0'),0);if(dur<=0)return;
+      const tr=A.activeTrack();if(!tr)return;A.pushHistory('Batch Norm');
+      [...A.selected.ids].forEach(id=>{const it=A.itemById(tr.id,id);if(it)it.end=it.start+dur});
+      A.markDirty();A.afterEdit();
+    },
+    moveToPlayhead(){
+      const tr=A.activeTrack();if(!tr||!A.selected.ids.size)return;
+      const items=[...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean);
+      if(!items.length)return;
+      const t=A.audioElement.currentTime,minS=Math.min(...items.map(i=>i.start)),delta=t-minS;
+      A.pushHistory('Move to Playhead');items.forEach(i=>{i.start+=delta;i.end+=delta});
+      A.markDirty();A.afterEdit();
+    },
+    selTrack(){
+      const tid=A.context.trackId,tr=A.trackById(tid);if(!tr)return;
+      A.selected.trackId=tid;
+      A.selected.ids=new Set(A.visibleItems(tr,A.ui.layerMode.value).map(i=>i.id));
+      A.renderTimeline();A.renderInspector();
+    }
+  };
+},
+
+runCommand(name){
+  const cmd=this.commands[name];
+  if(cmd)cmd();
+  else console.warn('Unknown command:',name);
+},
+
+/* helper: re-render after any editing op */
+afterEdit(){this.renderTimeline();this.renderInspector();this.renderPreview()},
+
 bind(){
   // File
   this.ui.audioUpload.onchange=e=>this.loadAudio(e.target.files[0]);
   this.ui.lineUpload.onchange=e=>this.loadTrackJSON(e.target.files[0],'line');
   this.ui.wordsUpload.onchange=e=>this.loadTrackJSON(e.target.files[0],'words');
 
-  // Export
-  this.ui.btnExportActive.onclick=()=>this.exportTrack(this.activeTrack());
+  // Export — via commands
+  this.ui.btnExportActive.onclick=()=>this.runCommand('exportActive');
   this.ui.btnExportLine.onclick=()=>this.exportTrack(this.trackByType('line'));
   this.ui.btnExportWords.onclick=()=>this.exportTrack(this.trackByType('words'));
   this.ui.btnExportAll.onclick=()=>this.exportAll();
@@ -726,12 +818,12 @@ bind(){
   this.ui.btnLoadSession.onclick=()=>this.ui.sessionUpload.click();
   this.ui.sessionUpload.onchange=e=>this.loadSessionFromFile(e.target.files[0]);
 
-  // Validate / Restore / Help / Hotkeys / Recent
-  this.ui.btnValidate.onclick=()=>this.openValidationModal();
-  this.ui.btnRestoreSession.onclick=()=>this.openRecentModals();
+  // Modals & commands via toolbar
+  this.ui.btnValidate.onclick=()=>this.runCommand('validate');
+  this.ui.btnRestoreSession.onclick=()=>this.openRecentModal();
   this.ui.btnRecent.onclick=()=>this.openRecentModal();
-  this.ui.btnHotkeys.onclick=()=>this.openHotkeysModal();
-  this.ui.btnHelp.onclick=()=>this.openHelpModal();
+  this.ui.btnHotkeys.onclick=()=>this.runCommand('openHotkeys');
+  this.ui.btnHelp.onclick=()=>this.runCommand('help');
   this.ui.btnVkbd.onclick=()=>this.openVkbdModal();
   this.ui.btnVkbdClose.onclick=()=>this.ui.vkbdModal.classList.add('hidden');
 
@@ -743,49 +835,43 @@ bind(){
 
   // Validation modal
   this.ui.btnValidationClose.onclick=()=>this.ui.validationModal.classList.add('hidden');
-  this.ui.btnValidationExport.onclick=()=>{this.ui.validationModal.classList.add('hidden');this.exportTrack(this.activeTrack())};
+  this.ui.btnValidationExport.onclick=()=>{this.ui.validationModal.classList.add('hidden');this.runCommand('exportActive')};
   this.ui.btnValidationFix.onclick=()=>this.autoFixOverlaps();
-  this.ui.btnValidationRerun.onclick=()=>this.openValidationModal();
+  this.ui.btnValidationRerun.onclick=()=>this.runCommand('validate');
 
-  // Help modal
+  // Help / Rename / Recent / Loop modal close
   this.ui.btnHelpClose.onclick=()=>this.ui.helpModal.classList.add('hidden');
-
-  // Rename modal
   this.ui.btnRenameCancel.onclick=()=>this.ui.renameModal.classList.add('hidden');
-
-  // Recent modal
   this.ui.btnRecentClose.onclick=()=>this.ui.recentModal.classList.add('hidden');
   this.ui.btnRecentClearAll.onclick=()=>{this.clearAllDrafts();this.ui.recentModal.classList.add('hidden')};
-
-  // Loop modal
   this.ui.btnLoopCancel.onclick=()=>this.ui.loopModal.classList.add('hidden');
   this.ui.btnLoopOk.onclick=()=>this.applyLoopFromModal();
 
-  // Transport
-  this.ui.btnPlay.onclick=()=>this.togglePlay();
-  this.ui.btnStop.onclick=()=>{this.audioElement.pause();this.audioElement.currentTime=0;this.syncPlayhead();this.ui.btnPlay.textContent='▶ Play'};
-  this.ui.btnCenterPlayhead.onclick=()=>this.centerOnPlayhead();
+  // Transport — via commands
+  this.ui.btnPlay.onclick=()=>this.runCommand('playPause');
+  this.ui.btnStop.onclick=()=>this.runCommand('stop');
+  this.ui.btnCenterPlayhead.onclick=()=>this.runCommand('centerPlayhead');
   this.ui.btnLoop.onclick=()=>this.openLoopModal();
   this.ui.btnLoopClear.onclick=()=>this.clearLoop();
 
-  // Edit
-  this.ui.btnUndo.onclick=()=>this.undo();
-  this.ui.btnRedo.onclick=()=>this.redo();
-  this.ui.btnSelectAll.onclick=()=>this.selectAll();
-  this.ui.btnDeselect.onclick=()=>this.clearSelection();
-  this.ui.btnSplit.onclick=()=>this.splitAtPlayhead();
-  this.ui.btnMergePrev.onclick=()=>this.mergeSelectedWithPrev();
-  this.ui.btnMerge.onclick=()=>this.mergeSelectedWithNext();
-  this.ui.btnDuplicate.onclick=()=>this.duplicateSelected();
-  this.ui.btnAddLine.onclick=()=>this.addNewLine();
-  this.ui.btnAddWord.onclick=()=>this.addNewWord();
-  this.ui.btnDelete.onclick=()=>this.deleteSelected();
+  // Edit — via commands
+  this.ui.btnUndo.onclick=()=>this.runCommand('undo');
+  this.ui.btnRedo.onclick=()=>this.runCommand('redo');
+  this.ui.btnSelectAll.onclick=()=>this.runCommand('selectAll');
+  this.ui.btnDeselect.onclick=()=>this.runCommand('deselect');
+  this.ui.btnSplit.onclick=()=>this.runCommand('split');
+  this.ui.btnMergePrev.onclick=()=>this.runCommand('mergePrev');
+  this.ui.btnMerge.onclick=()=>this.runCommand('mergeNext');
+  this.ui.btnDuplicate.onclick=()=>this.runCommand('duplicate');
+  this.ui.btnAddLine.onclick=()=>this.runCommand('addLine');
+  this.ui.btnAddWord.onclick=()=>this.runCommand('addWord');
+  this.ui.btnDelete.onclick=()=>this.runCommand('deleteSelected');
 
-  // Navigation
-  this.ui.btnFitSong.onclick=()=>this.fitSong();
-  this.ui.btnZoomSelection.onclick=()=>this.zoomToSelection();
-  this.ui.btnScrollSelection.onclick=()=>this.scrollToSelection();
-  this.ui.btnGotoSelection.onclick=()=>this.gotoSelectionStart();
+  // Navigation — via commands
+  this.ui.btnFitSong.onclick=()=>this.runCommand('fitSong');
+  this.ui.btnZoomSelection.onclick=()=>this.runCommand('zoomSelection');
+  this.ui.btnScrollSelection.onclick=()=>this.runCommand('scrollSelection');
+  this.ui.btnGotoSelection.onclick=()=>this.runCommand('gotoSelStart');
 
   // Sliders
   this.ui.zoomSlider.oninput=e=>this.setZoom(+e.target.value,true);
@@ -813,8 +899,9 @@ bind(){
   this.ui.scrollArea.addEventListener('contextmenu',e=>this.showContextMenu(e));
   document.addEventListener('click',e=>{
     if(!e.target.closest('#context-menu'))this.ui.contextMenu.classList.add('hidden');
-    const modals=['hotkeysModal','validationModal','helpModal','renameModal','recentModal','loopModal'];
-    modals.forEach(m=>{if(e.target===this.ui[m])this.ui[m].classList.add('hidden')});
+    ['hotkeysModal','validationModal','helpModal','renameModal','recentModal','loopModal'].forEach(m=>{
+      if(e.target===this.ui[m])this.ui[m].classList.add('hidden');
+    });
   });
   this.setupContext();
 
@@ -833,7 +920,7 @@ bind(){
   // Dirty warning
   window.addEventListener('beforeunload',e=>{if(this.dirty){e.preventDefault();e.returnValue=''}});
 
-  // Resize observer — перерисовываем ruler/grid при изменении размера окна
+  // Resize observer
   if(window.ResizeObserver){
     new ResizeObserver(()=>this.renderRuler()).observe(this.ui.timelineContainer);
   }else{
@@ -873,7 +960,7 @@ async loadTrackJSON(file,forceType){
 },
 
 normalizeTrack(raw,forceType,name){
-  const t={id:'T_'+this.uid(),type:forceType,name:name||forceType,visible:true,solo:false,locked:false,editable:true,items:[]};
+  const t={id:'T_'+this.uid(),type:forceType,name:name||forceType,visible:true,solo:false,locked:false,muted:false,editable:true,items:[]};
   if(forceType==='line'){
     if(!Array.isArray(raw)||!raw.length||!('time'in raw[0]))throw Error('bad line json');
     raw.forEach((d,i)=>{
@@ -893,6 +980,50 @@ normalizeTrack(raw,forceType,name){
     this.recalcTrackLines(t);
   }
   this.sortTrack(t);return t;
+},
+
+/* ─── normalization helpers ──────────────────────────────────────── */
+stableClampItem(item){
+  item.start=Math.max(0,item.start);
+  if(item.end<=item.start)item.end=item.start+.02;
+},
+
+enforceNoOverlapForKind(tr,kind){
+  const items=tr.items.filter(i=>i.kind===kind).sort((a,b)=>a.start-b.start);
+  for(let i=1;i<items.length;i++){
+    if(items[i].start<items[i-1].end){
+      items[i].start=items[i-1].end;
+      if(items[i].end<=items[i].start)items[i].end=items[i].start+.05;
+    }
+  }
+},
+
+recomputeWordsLineBounds(tr){
+  if(tr.type!=='words')return;
+  const lines=tr.items.filter(i=>i.kind==='line');
+  lines.forEach(line=>{
+    const words=tr.items.filter(i=>i.kind==='word'&&i.lineId===line.id);
+    if(!words.length)return;
+    const minS=Math.min(...words.map(w=>w.start)),maxE=Math.max(...words.map(w=>w.end));
+    line.start=Math.min(line.start,minS);
+    line.end=Math.max(line.end,maxE);
+  });
+},
+
+normalizeTrackAfterEdit(tr){
+  if(!tr)return;
+  tr.items.forEach(it=>this.stableClampItem(it));
+  this.sortTrack(tr);
+  if(tr.type==='words')this.recomputeWordsLineBounds(tr);
+},
+
+normalizeTrackForExport(tr){
+  const clone=JSON.parse(JSON.stringify(tr));
+  clone.items.forEach(it=>this.stableClampItem(it));
+  ['line','word'].forEach(k=>this.enforceNoOverlapForKind(clone,k));
+  this.sortTrack(clone);
+  if(clone.type==='words')this.recomputeWordsLineBounds(clone);
+  return clone;
 },
 
 /* ─── render core ────────────────────────────────────────────────── */
@@ -959,15 +1090,7 @@ renderLoopRegion(){
 },
 
 clearCanvas(c){c.width=1;c.height=1},
-
-rulerStep(){
-  const pxPerSec=this.zoom;
-  if(pxPerSec>=200)return .5;
-  if(pxPerSec>=80)return 1;
-  if(pxPerSec>=30)return 2;
-  if(pxPerSec>=12)return 5;
-  return 10;
-},
+rulerStep(){const p=this.zoom;return p>=200?.5:p>=80?1:p>=30?2:p>=12?5:10},
 rulerTime(t){const m=Math.floor(t/60),s=(t%60).toFixed(1);return m+':'+(+s<10?'0':'')+s},
 
 /* ─── headers ────────────────────────────────────────────────────── */
@@ -985,15 +1108,13 @@ renderHeaders(){
     const nm=document.createElement('span');nm.className='nm';nm.textContent=tr.name;nm.title='Двойной клик — переименовать';
     nm.ondblclick=()=>this.openRenameModal(tr.id);
     const tp=document.createElement('span');tp.className='tp';tp.textContent=tr.type.toUpperCase();
-
     const mkBtn=(lbl,cls,title,cb)=>{const b=document.createElement('button');b.textContent=lbl;b.className=cls;b.title=title;b.onclick=cb;return b};
-    const bV=mkBtn('V',tr.visible?'on':'','Показать/скрыть дорожку',()=>this.toggleTrackProp(tr.id,'visible'));
-    const bMu=mkBtn('M',tr.muted?'locked':'','Mute — заглушить дорожку (не влияет на visible)',()=>this.toggleTrackProp(tr.id,'muted'));
-    const bS=mkBtn('S',tr.solo?'sol':'','Solo — только эта и другие solo дорожки',()=>this.toggleTrackProp(tr.id,'solo'));
-    const bL=mkBtn('L',tr.locked?'locked':'','Заблокировать редактирование',()=>this.toggleTrackProp(tr.id,'locked'));
-    const bE=mkBtn('E',tr.id===this.project.activeTrackId?'on':'','Активная дорожка для редактирования',()=>this.setActiveTrack(tr.id));
-    const bC=mkBtn(this.collapsed[tr.id]?'▶':'▼','col-btn','Свернуть/развернуть дорожку',()=>this.toggleCollapse(tr.id));
-
+    const bV=mkBtn('V',tr.visible?'on':'','Показать/скрыть',()=>this.toggleTrackProp(tr.id,'visible'));
+    const bMu=mkBtn('M',tr.muted?'locked':'','Mute',()=>this.toggleTrackProp(tr.id,'muted'));
+    const bS=mkBtn('S',tr.solo?'sol':'','Solo',()=>this.toggleTrackProp(tr.id,'solo'));
+    const bL=mkBtn('L',tr.locked?'locked':'','Lock',()=>this.toggleTrackProp(tr.id,'locked'));
+    const bE=mkBtn('E',tr.id===this.project.activeTrackId?'on':'','Active',()=>this.setActiveTrack(tr.id));
+    const bC=mkBtn(this.collapsed[tr.id]?'▶':'▼','col-btn','Collapse',()=>this.toggleCollapse(tr.id));
     div.append(dot,nm,tp,bV,bMu,bS,bL,bE,bC);
     c.appendChild(div);
   });
@@ -1002,7 +1123,6 @@ renderHeaders(){
 toggleTrackProp(id,prop){
   const tr=this.trackById(id);if(!tr)return;
   tr[prop]=!tr[prop];
-  // solo: НЕ сбрасываем другие — позволяем multi-solo
   this.markDirty();this.renderHeaders();this.renderTimeline();this.renderPreview();
 },
 
@@ -1012,10 +1132,7 @@ setActiveTrack(id){
   this.renderHeaders();this.renderTimeline();this.renderInspector();
 },
 
-toggleCollapse(id){
-  this.collapsed[id]=!this.collapsed[id];
-  this.renderHeaders();this.renderTimeline();
-},
+toggleCollapse(id){this.collapsed[id]=!this.collapsed[id];this.renderHeaders();this.renderTimeline()},
 
 openRenameModal(id){
   const tr=this.trackById(id);if(!tr)return;
@@ -1036,6 +1153,13 @@ applyRename(){
 },
 
 /* ─── timeline render ────────────────────────────────────────────── */
+getVisibleTracks(){
+  const soloActive=this.project.tracks.some(t=>t.solo);
+  return this.project.tracks.filter(tr=>
+    tr.visible&&!tr.muted&&(!soloActive||tr.solo)&&!this.collapsed[tr.id]
+  );
+},
+
 renderTimeline(){
   this._conflictCache=new WeakMap();
   const c=this.ui.tracksContainer;c.innerHTML='';
@@ -1043,55 +1167,55 @@ renderTimeline(){
   const w=Math.ceil(this.duration*this.zoom);
   const row=Math.round(56*this.verticalZoom),lh=Math.round(34*this.verticalZoom);
   const layerM=this.ui.layerMode.value;
-  const soloActive=this.project.tracks.some(t=>t.solo);
 
-  this.project.tracks.forEach((tr,ti)=>{
-    if(!tr.visible)return;
-    if(tr.muted)return;
-    if(soloActive&&!tr.solo)return;
-    if(this.collapsed[tr.id])return;
+  this.getVisibleTracks().forEach(tr=>{
+    const ti=this.project.tracks.indexOf(tr);
     const color=tr.color||(tr.type==='line'?'#1e88e5':'#43a047');
     const trackTop=ti*row;
-
     const trkBg=document.createElement('div');
     trkBg.style.cssText=`position:absolute;left:0;top:${trackTop}px;height:${row-4}px;width:${w}px;background:rgba(255,255,255,.018);border-bottom:1px solid rgba(255,255,255,.05);pointer-events:none`;
     c.appendChild(trkBg);
-
     const isActive=tr.id===this.project.activeTrackId&&!tr.locked;
-    const items=this.visibleItems(tr,layerM);
-
-    items.forEach(it=>{
-      const px=it.start*this.zoom,pw=(it.end-it.start)*this.zoom,
-            isSel=this.selected.trackId===tr.id&&this.selected.ids.has(it.id);
-      const div=document.createElement('div');
-      div.className='track-item item-'+it.kind+(isSel?' selected':'')+(it.kind==='line'&&tr.type==='words'?'':'')+this.conflictClass(tr,it);
-      div.style.cssText=`left:${px}px;width:${Math.max(4,pw)}px;top:${trackTop+(it.kind==='line'?0:lh*.55)}px;height:${lh*(it.kind==='line'?.45:.42)}px;font-size:${Math.round(11*this.verticalZoom)}px`;
-      div.style.borderColor=color;div.style.background=this.itemBg(it,tr,color);
-      div.title=it.text;
-      div.dataset.id=it.id;div.dataset.tid=tr.id;
-
-      if(isActive){
-        const lh2=document.createElement('div');lh2.className='handle left';lh2.dataset.side='left';lh2.dataset.id=it.id;lh2.dataset.tid=tr.id;
-        const rh=document.createElement('div');rh.className='handle right';rh.dataset.side='right';rh.dataset.id=it.id;rh.dataset.tid=tr.id;
-        div.append(lh2,rh);
-        div.addEventListener('mousedown',e=>{
-          if(e.target.classList.contains('handle'))return;
-          e.stopPropagation();
-          if(!e.shiftKey&&!(this.selected.trackId===tr.id&&this.selected.ids.has(it.id))){
-            this.clearSelection();this.selectItem(tr.id,it.id);
-          }else if(e.shiftKey){this.selectItem(tr.id,it.id)}
-          const selSnap=[...this.selected.ids].map(sid=>{
-            const si=this.itemById(tr.id,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null;
-          }).filter(Boolean);
-          this.drag={active:true,type:'move',trackId:tr.id,itemId:it.id,startX:e.clientX,
-            initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value};
-        });
-      }
-      const label=document.createElement('span');label.textContent=it.text;label.style.pointerEvents='none';
-      div.appendChild(label);
-      c.appendChild(div);
+    this.visibleItems(tr,layerM).forEach(it=>{
+      c.appendChild(this.createTrackItemElement(tr,it,trackTop,lh,color,isActive));
     });
   });
+},
+
+createTrackItemElement(tr,it,trackTop,lh,color,isActive){
+  const px=it.start*this.zoom,pw=(it.end-it.start)*this.zoom,
+        isSel=this.selected.trackId===tr.id&&this.selected.ids.has(it.id);
+  const div=document.createElement('div');
+  let cls='track-item item-'+it.kind;
+  if(isSel)cls+=' selected';
+  if(!isActive&&tr.locked)cls+=' locked-ref';
+  if(isActive)cls+=' editable-active';
+  cls+=this.conflictClass(tr,it);
+  div.className=cls;
+  div.style.cssText=`left:${px}px;width:${Math.max(4,pw)}px;top:${trackTop+(it.kind==='line'?0:lh*.55)}px;height:${lh*(it.kind==='line'?.45:.42)}px;font-size:${Math.round(11*this.verticalZoom)}px`;
+  div.style.borderColor=color;div.style.background=this.itemBg(it,tr,color);
+  div.title=it.text;div.dataset.id=it.id;div.dataset.tid=tr.id;
+
+  if(isActive){
+    const lh2=document.createElement('div');lh2.className='handle left';lh2.dataset.side='left';lh2.dataset.id=it.id;lh2.dataset.tid=tr.id;
+    const rh=document.createElement('div');rh.className='handle right';rh.dataset.side='right';rh.dataset.id=it.id;rh.dataset.tid=tr.id;
+    div.append(lh2,rh);
+    div.addEventListener('mousedown',e=>{
+      if(e.target.classList.contains('handle'))return;
+      e.stopPropagation();
+      if(!e.shiftKey&&!(this.selected.trackId===tr.id&&this.selected.ids.has(it.id))){
+        this.clearSelection();this.selectItem(tr.id,it.id);
+      }else if(e.shiftKey){this.selectItem(tr.id,it.id)}
+      const selSnap=[...this.selected.ids].map(sid=>{
+        const si=this.itemById(tr.id,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null;
+      }).filter(Boolean);
+      this.drag={active:true,type:'move',trackId:tr.id,itemId:it.id,startX:e.clientX,
+        initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value};
+    });
+  }
+  const label=document.createElement('span');label.textContent=it.text;label.style.pointerEvents='none';
+  div.appendChild(label);
+  return div;
 },
 
 visibleItems(tr,layerM){
@@ -1131,10 +1255,9 @@ hexToRgba(hex,a){
 
 /* ─── playhead ───────────────────────────────────────────────────── */
 syncPlayhead(){
-  const t=this.audioElement.currentTime||0,px=t*this.zoom,w=this.ui.scrollArea.scrollWidth;
+  const t=this.audioElement.currentTime||0,px=t*this.zoom;
   this.ui.playhead.style.left=px+'px';
-  const m=this.duration||1;
-  this.ui.timeDisplay.textContent=this.fmtTime(t)+' / '+this.fmtTime(m);
+  this.ui.timeDisplay.textContent=this.fmtTime(t)+' / '+this.fmtTime(this.duration||1);
   this.updatePlayingHighlights(t);
   if(this.autoScroll&&this.audioElement&&!this.audioElement.paused){
     const sc=this.ui.timelineContainer,sw=sc.clientWidth,sl=sc.scrollLeft;
@@ -1142,15 +1265,10 @@ syncPlayhead(){
   }
 },
 
-startPlayheadDrag(e){
-  e.preventDefault();e.stopPropagation();
-  this.playheadDrag.active=true;
-  document.body.style.cursor='ew-resize';
-},
+startPlayheadDrag(e){e.preventDefault();e.stopPropagation();this.playheadDrag.active=true;document.body.style.cursor='ew-resize'},
 
 updatePlayingHighlights(t){
   document.querySelectorAll('.track-item.playing').forEach(e=>e.classList.remove('playing'));
-  if(!this.project.tracks.length)return;
   this.project.tracks.forEach(tr=>{
     if(!tr.visible)return;
     tr.items.forEach(it=>{
@@ -1165,11 +1283,82 @@ updatePlayingHighlights(t){
 fmtTime(t){const m=Math.floor(t/60),s=(t%60).toFixed(2);return m+':'+(+s<10?'0':'')+s},
 
 centerOnPlayhead(){
-  const t=this.audioElement.currentTime,px=t*this.zoom,sw=this.ui.timelineContainer.clientWidth;
+  const px=this.audioElement.currentTime*this.zoom,sw=this.ui.timelineContainer.clientWidth;
   this.ui.timelineContainer.scrollLeft=Math.max(0,px-sw/2);
 },
 
-/* ─── drag ───────────────────────────────────────────────────────── */
+/* ─── drag helpers ───────────────────────────────────────────────── */
+getPrevNeighbor(tr,it){
+  const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
+  const idx=same.findIndex(i=>i.id===it.id);
+  return idx>0?same[idx-1]:null;
+},
+
+getNextNeighbor(tr,it){
+  const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
+  const idx=same.findIndex(i=>i.id===it.id);
+  return idx>=0&&idx<same.length-1?same[idx+1]:null;
+},
+
+// Aliases for backward compat
+prevItem(tr,it){return this.getPrevNeighbor(tr,it)},
+nextItem(tr,it){return this.getNextNeighbor(tr,it)},
+
+applyFreeMove(sel,rawDelta){
+  sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+rawDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+rawDelta)});
+},
+
+applyNoOverlapMove(tr,sel,rawDelta){
+  const selIds=new Set(sel.map(s=>s.item.id));
+  const others=tr.items.filter(i=>!selIds.has(i.id));
+  let d=rawDelta;
+  sel.forEach(s=>{
+    const newS=s.origStart+d,newE=s.origEnd+d;
+    others.forEach(o=>{
+      if(o.kind!==s.item.kind)return;
+      if(d>0&&o.start>=s.origEnd-1e-9){d=Math.min(d,d-(newE-o.start));d=Math.max(d,0)}
+      if(d<0&&o.end<=s.origStart+1e-9){d=Math.max(d,d+(o.end-(s.origStart+d)));d=Math.min(d,0)}
+    });
+  });
+  sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+d);s.item.end=Math.max(s.item.start+.02,s.origEnd+d)});
+},
+
+applyRippleMove(tr,sel,rawDelta){
+  // Move selected, push others ahead
+  const selIds=new Set(sel.map(s=>s.item.id));
+  sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+rawDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+rawDelta)});
+  if(rawDelta>0){
+    sel.forEach(s=>{
+      tr.items.filter(i=>!selIds.has(i.id)&&i.kind===s.item.kind&&i.start<s.item.end&&i.start>=s.origEnd-1e-9).forEach(o=>{
+        const push=s.item.end-o.start;o.start+=push;o.end+=push;
+      });
+    });
+  }
+},
+
+applyHandleTrim(tr,it,side,raw,mode){
+  if(side==='left'){
+    raw=Math.max(0,Math.min(raw,it.end-.02));
+    if(mode!=='free'){const pr=this.getPrevNeighbor(tr,it);if(pr&&pr.kind===it.kind)raw=Math.max(raw,pr.end)}
+    it.start=raw;
+  }else{
+    raw=Math.max(it.start+.02,raw);
+    if(mode!=='free'){const nx=this.getNextNeighbor(tr,it);if(nx&&nx.kind===it.kind)raw=Math.min(raw,nx.start)}
+    it.end=raw;
+    if(mode==='ripple')this.rippleRight(tr,it,raw);
+  }
+},
+
+applyRollTrim(rp,dx,snapStep){
+  const totalDur=rp.b.end-rp.a.start;
+  let newMid=rp.a.end+dx;
+  if(snapStep)newMid=Math.round(newMid/snapStep)*snapStep;
+  newMid=Math.max(rp.a.start+.02,Math.min(rp.b.end-.02,newMid));
+  rp.a.end=newMid;rp.b.start=newMid;
+  rp.b.end=Math.max(rp.b.start+.02,rp.a.start+totalDur);
+},
+
+/* ─── drag: main handlers ────────────────────────────────────────── */
 handleTimelineMouseDown(e){
   if(e.button===2)return;
   if(e.target.classList.contains('playhead-handle'))return;
@@ -1184,8 +1373,8 @@ handleTimelineMouseDown(e){
     const tr=this.trackById(tid),it=this.itemById(tid,id);if(!tr||!it)return;
     const mode=this.ui.dragMode.value;
     let rollPair=null;
-    if(mode==='roll'&&side==='right'){const nx=this.nextItem(tr,it);if(nx)rollPair={a:it,b:nx}}
-    if(mode==='roll'&&side==='left'){const pr=this.prevItem(tr,it);if(pr)rollPair={a:pr,b:it}}
+    if(mode==='roll'&&side==='right'){const nx=this.getNextNeighbor(tr,it);if(nx)rollPair={a:it,b:nx}}
+    if(mode==='roll'&&side==='left'){const pr=this.getPrevNeighbor(tr,it);if(pr)rollPair={a:pr,b:it}}
     this.drag={active:true,type:'handle',trackId:tid,itemId:id,side,startX:e.clientX,
       initial:{start:it.start,end:it.end},sel:[],rollPair,mode};
     return;
@@ -1195,10 +1384,9 @@ handleTimelineMouseDown(e){
     const id=item.dataset.id,tid=item.dataset.tid;
     const tr=this.trackById(tid),it=this.itemById(tid,id);if(!tr||!it)return;
     if(!e.shiftKey&&!(this.selected.trackId===tid&&this.selected.ids.has(id))){
-      this.clearSelection();
-      this.selectItem(tid,id);
+      this.clearSelection();this.selectItem(tid,id);
     }else if(e.shiftKey){this.selectItem(tid,id)}
-    const selSnap=this.selected.trackId===tid?[...this.selected.ids].map(sid=>({item:this.itemById(tid,sid),origStart:this.itemById(tid,sid).start,origEnd:this.itemById(tid,sid).end})).filter(x=>x.item):[{item:it,origStart:it.start,origEnd:it.end}];
+    const selSnap=this.selected.trackId===tid?[...this.selected.ids].map(sid=>{const si=this.itemById(tid,sid);return si?{item:si,origStart:si.start,origEnd:si.end}:null}).filter(Boolean):[{item:it,origStart:it.start,origEnd:it.end}];
     this.drag={active:true,type:'move',trackId:tid,itemId:id,startX:e.clientX,
       initial:{start:it.start,end:it.end},sel:selSnap,mode:this.ui.dragMode.value};
     return;
@@ -1210,10 +1398,8 @@ handleTimelineMouseDown(e){
     const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
     const t=Math.max(0,px/this.zoom);
     if(e.shiftKey){
-      // начинаем drag для loop
       this._loopDrag={active:true,startT:t};
-      this.loop={enabled:false,start:t,end:t};
-      return;
+      this.loop={enabled:false,start:t,end:t};return;
     }
     this.audioElement.currentTime=t;this.syncPlayhead();return;
   }
@@ -1226,106 +1412,84 @@ handleTimelineMouseDown(e){
 },
 
 handleGlobalMouseMove(e){
-  if(this.playheadDrag.active){
-    const rect=this.ui.scrollArea.getBoundingClientRect();
-    const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
-    const t=Math.max(0,Math.min(px/this.zoom,this.duration||99999));
-    this.audioElement.currentTime=t;this.syncPlayhead();return;
-  }
-
+  if(this.playheadDrag.active){this.handlePlayheadDragMove(e);return}
   if(this.charDrag.active){this.handleCharDragMove(e);return}
-  if(this._loopDrag?.active){
-    const rect=this.ui.scrollArea.getBoundingClientRect();
-    const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
-    const t=Math.max(0,px/this.zoom);
-    const s=Math.min(this._loopDrag.startT,t),en=Math.max(this._loopDrag.startT,t);
-    this.loop={enabled:en-s>.05,start:s,end:en};
-    this.renderLoopRegion();return;
-  }
-
-  if(this.drag.active){
-    const dx=(e.clientX-this.drag.startX)/this.zoom;
-    const tr=this.trackById(this.drag.trackId);if(!tr)return;
-    const mode=this.drag.mode||'free';
-
-    if(this.drag.type==='move'){
-      let minDelta=-Infinity,maxDelta=Infinity;
-      this.drag.sel.forEach(s=>{
-        minDelta=Math.max(minDelta,-s.origStart);
-      });
-      let rawDelta=this.snapStep?Math.round(dx/this.snapStep)*this.snapStep:dx;
-      rawDelta=Math.max(rawDelta,minDelta);
-
-      if(mode!=='free'){
-        // Ripple batch: compute valid delta against non-selected neighbours
-        const selIds=new Set(this.drag.sel.map(s=>s.item.id));
-        const others=tr.items.filter(i=>!selIds.has(i.id));
-        this.drag.sel.forEach(s=>{
-          const newS=s.origStart+rawDelta,newE=s.origEnd+rawDelta;
-          others.forEach(o=>{
-            if(o.kind!==s.item.kind)return;
-            if(rawDelta>0&&o.start>=s.origEnd-1e-9){const lim=o.start-(newE-s.origEnd);maxDelta=Math.min(maxDelta,lim);rawDelta=Math.min(rawDelta,maxDelta)}
-            if(rawDelta<0&&o.end<=s.origStart+1e-9){const lim=o.end-s.origStart;minDelta=Math.max(minDelta,lim);rawDelta=Math.max(rawDelta,minDelta)}
-          });
-        });
-      }
-      const finalDelta=rawDelta;
-      this.drag.sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+finalDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+finalDelta)});
-    }
-
-    if(this.drag.type==='handle'){
-      const it=this.itemById(this.drag.trackId,this.drag.itemId);if(!it)return;
-      const rp=this.drag.rollPair;
-      if(rp&&mode==='roll'){
-        const totalDur=rp.b.end-rp.a.start;
-        let newMid=Math.max(rp.a.start+.02,Math.min(rp.b.end-.02,(this.drag.side==='right'?rp.a.start:rp.b.end)+(dx)));
-        if(this.snapStep)newMid=Math.round(newMid/this.snapStep)*this.snapStep;
-        rp.a.end=newMid;rp.b.start=newMid;
-        // preserve total duration
-        rp.b.end=Math.max(rp.b.start+.02, rp.b.start+(totalDur-(rp.a.end-rp.a.start)));
-      }else{
-        let raw=this.drag.side==='left'?this.drag.initial.start+dx:this.drag.initial.end+dx;
-        if(this.snapStep)raw=Math.round(raw/this.snapStep)*this.snapStep;
-        if(this.drag.side==='left'){
-          raw=Math.max(0,Math.min(raw,it.end-.02));
-          if(mode!=='free'){const pr=this.prevItem(tr,it);if(pr&&pr.kind===it.kind)raw=Math.max(raw,pr.end)}
-          it.start=raw;
-        }else{
-          raw=Math.max(it.start+.02,raw);
-          if(mode!=='free'){const nx=this.nextItem(tr,it);if(nx&&nx.kind===it.kind)raw=Math.min(raw,nx.start)}
-          it.end=raw;
-          if(mode==='ripple'){this.rippleRight(tr,it,raw)}
-        }
-      }
-    }
-
-    this.renderTimeline();this.renderInspector();this.renderPreview();return;
-  }
-
-  if(this.marquee.active){
-    const rect=this.ui.scrollArea.getBoundingClientRect();
-    const x1=Math.min(e.clientX,this.marquee.startX)-rect.left,x2=Math.max(e.clientX,this.marquee.startX)-rect.left;
-    const y1=Math.min(e.clientY,this.marquee.startY)-rect.top,y2=Math.max(e.clientY,this.marquee.startY)-rect.top;
-    const sb=this.ui.selectionBox;
-    sb.style.left=(x1+this.ui.timelineContainer.scrollLeft)+'px';
-    sb.style.top=(y1+this.ui.timelineContainer.scrollTop)+'px';
-    sb.style.width=(x2-x1)+'px';sb.style.height=(y2-y1)+'px';
-  }
-
+  if(this._loopDrag?.active){this.handleLoopDragMove(e);return}
+  if(this.drag.active){this.handleMainDragMove(e);return}
+  if(this.marquee.active){this.handleMarqueeMove(e);return}
   if(this.resize.active)this.handleResize(e);
 },
 
-handleGlobalMouseUp(){
-  if(this.playheadDrag.active){
-    this.playheadDrag.active=false;document.body.style.cursor='';return;
+handlePlayheadDragMove(e){
+  const rect=this.ui.scrollArea.getBoundingClientRect();
+  const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
+  const t=Math.max(0,Math.min(px/this.zoom,this.duration||99999));
+  this.audioElement.currentTime=t;this.syncPlayhead();
+},
+
+handleLoopDragMove(e){
+  const rect=this.ui.scrollArea.getBoundingClientRect();
+  const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
+  const t=Math.max(0,px/this.zoom);
+  const s=Math.min(this._loopDrag.startT,t),en=Math.max(this._loopDrag.startT,t);
+  this.loop={enabled:en-s>.05,start:s,end:en};
+  this.renderLoopRegion();
+},
+
+handleMainDragMove(e){
+  const dx=(e.clientX-this.drag.startX)/this.zoom;
+  const tr=this.trackById(this.drag.trackId);if(!tr)return;
+  const mode=this.drag.mode||'free';
+
+  if(this.drag.type==='move'){
+    let rawDelta=this.snapStep?Math.round(dx/this.snapStep)*this.snapStep:dx;
+    // clamp so nothing goes below 0
+    this.drag.sel.forEach(s=>{rawDelta=Math.max(rawDelta,-s.origStart)});
+
+    if(mode==='free'){
+      this.applyFreeMove(this.drag.sel,rawDelta);
+    }else if(mode==='ripple'){
+      this.applyRippleMove(tr,this.drag.sel,rawDelta);
+    }else{
+      this.applyNoOverlapMove(tr,this.drag.sel,rawDelta);
+    }
   }
+
+  if(this.drag.type==='handle'){
+    const it=this.itemById(this.drag.trackId,this.drag.itemId);if(!it)return;
+    const rp=this.drag.rollPair;
+    if(rp&&mode==='roll'){
+      this.applyRollTrim(rp,dx,this.snapStep);
+    }else{
+      let raw=this.drag.side==='left'?this.drag.initial.start+dx:this.drag.initial.end+dx;
+      if(this.snapStep)raw=Math.round(raw/this.snapStep)*this.snapStep;
+      this.applyHandleTrim(tr,it,this.drag.side,raw,mode);
+    }
+  }
+
+  this.renderTimeline();this.renderInspector();this.renderPreview();
+},
+
+handleMarqueeMove(e){
+  const rect=this.ui.scrollArea.getBoundingClientRect();
+  const x1=Math.min(e.clientX,this.marquee.startX)-rect.left,x2=Math.max(e.clientX,this.marquee.startX)-rect.left;
+  const y1=Math.min(e.clientY,this.marquee.startY)-rect.top,y2=Math.max(e.clientY,this.marquee.startY)-rect.top;
+  const sb=this.ui.selectionBox;
+  sb.style.left=(x1+this.ui.timelineContainer.scrollLeft)+'px';
+  sb.style.top=(y1+this.ui.timelineContainer.scrollTop)+'px';
+  sb.style.width=(x2-x1)+'px';sb.style.height=(y2-y1)+'px';
+},
+
+handleGlobalMouseUp(){
+  if(this.playheadDrag.active){this.playheadDrag.active=false;document.body.style.cursor='';return}
   if(this.charDrag.active){this.commitCharDrag();return}
   if(this.drag.active){
     this.resolveNoOverlap();
     this.sortActiveTrack();
+    this.normalizeTrackAfterEdit(this.activeTrack());
     this.pushHistory('Drag');this.markDirty();
     this.drag={active:false};
-    this.renderTimeline();this.renderInspector();return;
+    this.afterEdit();return;
   }
   if(this._loopDrag?.active){
     this._loopDrag.active=false;
@@ -1346,24 +1510,20 @@ finalizeMarquee(){
   if(!sb||sb.classList.contains('hidden'))return;
   const sl=parseInt(sb.style.left)||0,st=parseInt(sb.style.top)||0;
   const sr=sl+(parseInt(sb.style.width)||0),sb2=st+(parseInt(sb.style.height)||0);
-  if(sr-sl<4&&sb2-st<4){this.renderTimeline();this.renderInspector();return}// no tiny marquee
+  if(sr-sl<4&&sb2-st<4){this.afterEdit();return}
   const wh=Math.round(80*this.verticalZoom),row=Math.round(56*this.verticalZoom),lh=Math.round(34*this.verticalZoom);
-  const soloActive=this.project.tracks.some(t=>t.solo);
-  // marquee selects on activeTrack only (multi-track select requires same trackId)
-  // but we find which track the marquee box overlaps vertically and select items there
+  const visTracks=this.getVisibleTracks();
   let hitTid=null;
-  this.project.tracks.forEach((tr,ti)=>{
-    if(!tr.visible||tr.muted)return;
-    if(soloActive&&!tr.solo)return;
-    const tTop=wh+60+ti*row,tBot=tTop+lh;
-    if(st<tBot&&sb2>tTop)hitTid=tr.id;// last hit wins (bottom track)
-  });
-  const activeId=this.project.activeTrackId;
-  const targetId=hitTid||activeId;
-  const tr=this.trackById(targetId);if(!tr)return;
-  tr.items.forEach(it=>{
+  visTracks.forEach(tr=>{
     const ti=this.project.tracks.indexOf(tr);
-    const tTop=wh+60+ti*row;
+    const tTop=wh+60+ti*row,tBot=tTop+lh;
+    if(st<tBot&&sb2>tTop)hitTid=tr.id;
+  });
+  const targetId=hitTid||this.project.activeTrackId;
+  const tr=this.trackById(targetId);if(!tr)return;
+  const ti=this.project.tracks.indexOf(tr);
+  const tTop=wh+60+ti*row;
+  tr.items.forEach(it=>{
     const ix=it.start*this.zoom,iw=Math.max(4,(it.end-it.start)*this.zoom);
     if(ix<sr&&ix+iw>sl&&tTop<sb2&&tTop+lh>st){
       if(this.selected.trackId&&this.selected.trackId!==targetId)return;
@@ -1375,8 +1535,8 @@ finalizeMarquee(){
 
 rippleRight(tr,anchor,newEnd){
   const delta=newEnd-this.drag.initial.end;if(Math.abs(delta)<1e-6)return;
-  const others=tr.items.filter(i=>i.kind===anchor.kind&&i.start>=anchor.end-1e-9&&i.id!==anchor.id);
-  others.forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
+  tr.items.filter(i=>i.kind===anchor.kind&&i.start>=anchor.end-1e-9&&i.id!==anchor.id)
+    .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
 },
 
 resolveNoOverlap(){
@@ -1397,18 +1557,6 @@ resolveNoOverlap(){
       }
     }
   });
-},
-
-prevItem(tr,it){
-  const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
-  const idx=same.findIndex(i=>i.id===it.id);
-  return idx>0?same[idx-1]:null;
-},
-
-nextItem(tr,it){
-  const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
-  const idx=same.findIndex(i=>i.id===it.id);
-  return idx>=0&&idx<same.length-1?same[idx+1]:null;
 },
 
 /* ─── selection ──────────────────────────────────────────────────── */
@@ -1438,6 +1586,7 @@ renderInspector(){
   const ids=[...this.selected.ids];
   const items=ids.map(id=>this.itemById(this.selected.trackId,id)).filter(Boolean);
   if(!items.length){c.innerHTML='<p class="muted">Нет данных</p>';return}
+
   if(isReadonly&&ids.length===1){
     const it=items[0];
     c.innerHTML=`<div style="border:1px solid #4a3200;border-radius:6px;padding:8px;background:rgba(255,152,0,.06);margin-bottom:8px;font-size:11px;color:#ff9800">
@@ -1468,8 +1617,6 @@ renderInspector(){
       <button class="btn" id="ins-chars-dist">Distribute Evenly</button></div>`;
     }
 
-    const isLine=it.kind==='line';
-    const isWord=it.kind==='word';
     const isWordsTr=tr.type==='words';
     html+=`<div class="iact">
       <button class="btn pri" id="ins-apply">Apply</button>
@@ -1479,13 +1626,12 @@ renderInspector(){
       <button class="btn" id="ins-dup">⧉ Dup</button>
       <button class="btn" id="ins-del">🗑 Del</button>
     </div>
-    ${isLine&&isWordsTr?`<div class="iact"><button class="btn" id="ins-words-from-line">→ Words from Line</button></div>`:''}
-    ${isWord&&isWordsTr?`<div class="iact"><button class="btn" id="ins-line-from-words">→ Collapse to Line</button></div>`:''}`;
+    ${it.kind==='line'&&isWordsTr?`<div class="iact"><button class="btn" id="ins-words-from-line">→ Words from Line</button></div>`:''}
+    ${it.kind==='word'&&isWordsTr?`<div class="iact"><button class="btn" id="ins-line-from-words">→ Collapse to Line</button></div>`:''}`;
 
     c.innerHTML=html;
     this.bindInspectorSingle(tr,it);
   }else{
-    // batch
     const totalDur=items.reduce((s,i)=>s+(i.end-i.start),0).toFixed(3);
     let html=`<div class="igr"><label>Выбрано: ${items.length}</label></div>
     <div class="igr"><label>Суммарная длительность: ${totalDur}s</label></div>
@@ -1521,23 +1667,29 @@ renderCharsInspector(it){
   return html;
 },
 
+applyInspectorEdits(tr,it){
+  const ins=f=>document.getElementById(f);
+  const ns=this.num(ins('ins-start').value,it.start),ne=this.num(ins('ins-end').value,it.end);
+  if(ns>=ne){alert('Start должен быть меньше End');return}
+  this.pushHistory('Inspector Edit');
+  it.start=Math.max(0,ns);it.end=Math.max(it.start+.02,ne);
+  it.text=ins('ins-text').value;
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
+},
+
 bindInspectorSingle(tr,it){
   const ins=f=>document.getElementById(f);
-  const applyFn=()=>{
-    const ns=this.num(ins('ins-start').value,it.start),ne=this.num(ins('ins-end').value,it.end);
-    if(ns>=ne){alert('Start должен быть меньше End');return}
-    this.pushHistory('Inspector Edit');
-    it.start=Math.max(0,ns);it.end=Math.max(it.start+.02,ne);
-    it.text=ins('ins-text').value;
-    this.markDirty();this.sortActiveTrack();this.renderTimeline();this.renderInspector();this.renderPreview();
-  };
+  const applyFn=()=>this.applyInspectorEdits(tr,it);
   ins('ins-apply').onclick=applyFn;
-  ['ins-start','ins-end','ins-text'].forEach(id=>{const el=ins(id);if(el){el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();applyFn()}}}});
-  ins('ins-split')?.addEventListener('click',()=>this.splitAtPlayhead());
-  ins('ins-merge-prev')?.addEventListener('click',()=>this.mergeSelectedWithPrev());
-  ins('ins-merge-next')?.addEventListener('click',()=>this.mergeSelectedWithNext());
-  ins('ins-dup')?.addEventListener('click',()=>this.duplicateSelected());
-  ins('ins-del')?.addEventListener('click',()=>this.deleteSelected());
+  ['ins-start','ins-end','ins-text'].forEach(id=>{
+    const el=ins(id);if(el)el.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();applyFn()}}
+  });
+  ins('ins-split')?.addEventListener('click',()=>this.runCommand('split'));
+  ins('ins-merge-prev')?.addEventListener('click',()=>this.runCommand('mergePrev'));
+  ins('ins-merge-next')?.addEventListener('click',()=>this.runCommand('mergeNext'));
+  ins('ins-dup')?.addEventListener('click',()=>this.runCommand('duplicate'));
+  ins('ins-del')?.addEventListener('click',()=>this.runCommand('deleteSelected'));
   ins('ins-words-from-line')?.addEventListener('click',()=>this.createWordsFromLine(tr,it));
   ins('ins-line-from-words')?.addEventListener('click',()=>this.collapseWordToLine(tr,it));
   if(it.kind==='word'){
@@ -1578,8 +1730,7 @@ handleCharDragMove(e){
 
 commitCharDrag(){
   this.charDrag.active=false;this.pushHistory('Char Drag');this.markDirty();
-  const tr=this.trackById(this.charDrag.trackId),it=this.itemById(this.charDrag.trackId,this.charDrag.itemId);
-  if(tr&&it)this.renderInspector();
+  this.renderInspector();
 },
 
 rebuildCharsFromWord(tr,it){
@@ -1601,35 +1752,36 @@ bindInspectorBatch(tr,items){
     const delta=this.num(document.getElementById('batch-delta').value,0);
     this.pushHistory('Batch Move');
     this.batchMoveRipple(tr,items,delta);
-    this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+    this.normalizeTrackAfterEdit(tr);
+    this.markDirty();this.afterEdit();
   });
   document.getElementById('batch-norm')?.addEventListener('click',()=>{
     const dur=this.num(document.getElementById('batch-dur').value,0);
     if(dur<=0)return;
     this.pushHistory('Batch Norm');
     items.forEach(i=>{i.end=i.start+dur});
-    this.markDirty();this.renderTimeline();this.renderInspector();
+    this.normalizeTrackAfterEdit(tr);
+    this.markDirty();this.afterEdit();
   });
   document.getElementById('batch-close')?.addEventListener('click',()=>{
     const gap=this.num(document.getElementById('batch-gap').value,0);
     this.pushHistory('Batch Close Gaps');
     const sorted=[...items].sort((a,b)=>a.start-b.start);
     sorted.forEach((it,i)=>{if(i>0){it.start=sorted[i-1].end+gap;it.end=Math.max(it.start+.02,it.end)}});
-    this.markDirty();this.renderTimeline();this.renderInspector();
+    this.normalizeTrackAfterEdit(tr);
+    this.markDirty();this.afterEdit();
   });
   document.getElementById('batch-dist')?.addEventListener('click',()=>this.distributeItemsEvenly(items));
-  document.getElementById('ins-del')?.addEventListener('click',()=>this.deleteSelected());
+  document.getElementById('ins-del')?.addEventListener('click',()=>this.runCommand('deleteSelected'));
 },
 
 batchMoveRipple(tr,selItems,delta){
   if(Math.abs(delta)<1e-9)return;
-  const selIds=new Set(selItems.map(i=>i.id));
-  const others=tr.items.filter(i=>!selIds.has(i.id));
-  // clamp delta so nothing goes below 0
   let fd=delta;
   selItems.forEach(i=>{fd=Math.max(fd,-i.start)});
   if(this.ui.dragMode.value!=='free'){
-    // ripple: also move items after selection if they'd overlap
+    const selIds=new Set(selItems.map(i=>i.id));
+    const others=tr.items.filter(i=>!selIds.has(i.id));
     selItems.forEach(i=>{
       const ns=i.start+fd,ne=i.end+fd;
       others.forEach(o=>{
@@ -1650,10 +1802,10 @@ distributeItemsEvenly(items){
   const step=total/sorted.length;
   this.pushHistory('Distribute Evenly');
   sorted.forEach((it,i)=>{const dur=it.end-it.start;it.start=sorted[0].start+i*step;it.end=it.start+dur});
-  this.markDirty();this.renderTimeline();this.renderInspector();
+  this.markDirty();this.afterEdit();
 },
 
-/* ─── editing ops ────────────────────────────────────────────────── */
+/* ─── editing ops (smart split/merge) ────────────────────────────── */
 splitAtPlayhead(){
   const tr=this.activeTrack();if(!tr)return;
   const t=this.audioElement.currentTime;
@@ -1663,25 +1815,42 @@ splitAtPlayhead(){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);
     if(!it||t<=it.start||t>=it.end)return;
-    const newIt={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:t,chars:[]};
-    it.end=t;it.chars=(it.chars||[]).filter(c=>this.num(c.start,it.start)<t);
+    // Smart split: divide text at word boundary nearest to time ratio
+    const ratio=(t-it.start)/(it.end-it.start);
+    const words=it.text.split(/\s+/);
+    let splitIdx=Math.max(1,Math.round(words.length*ratio));
+    if(splitIdx>=words.length)splitIdx=words.length-1;
+    const textBefore=words.slice(0,splitIdx).join(' ');
+    const textAfter=words.slice(splitIdx).join(' ');
+    const newIt={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:t,
+      text:textAfter||it.text,chars:[]};
+    it.end=t;
+    it.text=textBefore||it.text;
+    it.chars=(it.chars||[]).filter(c=>this.num(c.start,it.start)<t);
     tr.items.push(newIt);
   });
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 splitAtCursor(cursorT){
-  const tr=this.activeTrack();if(!tr)return;
-  if(!this.selected.ids.size)return;
+  const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
   const ids=[...this.selected.ids];
   this.pushHistory('Split at Cursor');
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);
     if(!it||cursorT<=it.start||cursorT>=it.end)return;
-    const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:cursorT,chars:[]};
-    it.end=cursorT;tr.items.push(nit);
+    const ratio=(cursorT-it.start)/(it.end-it.start);
+    const words=it.text.split(/\s+/);
+    let si=Math.max(1,Math.round(words.length*ratio));
+    if(si>=words.length)si=words.length-1;
+    const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:cursorT,
+      text:words.slice(si).join(' ')||it.text,chars:[]};
+    it.end=cursorT;it.text=words.slice(0,si).join(' ')||it.text;
+    tr.items.push(nit);
   });
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 mergeSelectedWithNext(){
@@ -1690,12 +1859,13 @@ mergeSelectedWithNext(){
   this.pushHistory('Merge Next');
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
-    const nx=this.nextItem(tr,it);if(!nx)return;
-    it.end=nx.end;it.text+=' '+nx.text;
+    const nx=this.getNextNeighbor(tr,it);if(!nx)return;
+    it.end=nx.end;it.text=(it.text+' '+nx.text).trim();
     it.chars=[...(it.chars||[]),...(nx.chars||[])];
     tr.items=tr.items.filter(i=>i.id!==nx.id);
   });
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 mergeSelectedWithPrev(){
@@ -1704,13 +1874,14 @@ mergeSelectedWithPrev(){
   this.pushHistory('Merge Prev');
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
-    const pr=this.prevItem(tr,it);if(!pr)return;
-    pr.end=it.end;pr.text+=' '+it.text;
+    const pr=this.getPrevNeighbor(tr,it);if(!pr)return;
+    pr.end=it.end;pr.text=(pr.text+' '+it.text).trim();
     pr.chars=[...(pr.chars||[]),...(it.chars||[])];
     tr.items=tr.items.filter(i=>i.id!==it.id);
     this.selected.ids.delete(id);this.selected.ids.add(pr.id);
   });
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 duplicateSelected(){
@@ -1721,13 +1892,15 @@ duplicateSelected(){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
     const dur=it.end-it.start;
-    const nx=this.nextItem(tr,it);
+    const nx=this.getNextNeighbor(tr,it);
     const newStart=nx?Math.max(it.end,nx.start-dur):it.end;
-    const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:newStart,end:newStart+dur,chars:JSON.parse(JSON.stringify(it.chars||[]))};
+    const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:newStart,end:newStart+dur,
+      chars:JSON.parse(JSON.stringify(it.chars||[]))};
     tr.items.push(nit);newIds.add(nit.id);
   });
   this.selected.ids=newIds;
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 addNewLine(){
@@ -1771,8 +1944,7 @@ zoomToSelection(){
   if(!items.length)return;
   const minS=Math.min(...items.map(i=>i.start)),maxE=Math.max(...items.map(i=>i.end));
   const w=this.ui.timelineContainer.clientWidth;
-  const newZ=Math.max(10,Math.floor(w/(maxE-minS)*.85));
-  this.setZoom(newZ,false);
+  this.setZoom(Math.max(10,Math.floor(w/(maxE-minS)*.85)),false);
   setTimeout(()=>this.ui.timelineContainer.scrollLeft=minS*this.zoom-20,50);
 },
 
@@ -1781,16 +1953,14 @@ scrollToSelection(){
   const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
   if(!items.length)return;
   const minS=Math.min(...items.map(i=>i.start));
-  const w=this.ui.timelineContainer.clientWidth;
-  this.ui.timelineContainer.scrollLeft=Math.max(0,minS*this.zoom-w/2);
+  this.ui.timelineContainer.scrollLeft=Math.max(0,minS*this.zoom-this.ui.timelineContainer.clientWidth/2);
 },
 
 gotoSelectionStart(){
   const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
   const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
   if(!items.length)return;
-  const minS=Math.min(...items.map(i=>i.start));
-  this.audioElement.currentTime=minS;this.syncPlayhead();
+  this.audioElement.currentTime=Math.min(...items.map(i=>i.start));this.syncPlayhead();
 },
 
 /* ─── loop ───────────────────────────────────────────────────────── */
@@ -1818,9 +1988,8 @@ handleLoopTick(){
 /* ─── context menu ───────────────────────────────────────────────── */
 showContextMenu(e){
   e.preventDefault();
-  const scrollLeft=this.ui.timelineContainer.scrollLeft,scrollTop=this.ui.timelineContainer.scrollTop;
   const rect=this.ui.scrollArea.getBoundingClientRect();
-  const px=e.clientX-rect.left+scrollLeft;
+  const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
   this.context.cursorX=px/this.zoom;
   const item=e.target.closest('.track-item');
   this.context.trackId=item?.dataset.tid||this.project.activeTrackId;
@@ -1833,37 +2002,37 @@ showContextMenu(e){
 },
 
 setupContext(){
-  this.ui.ctxEdit.onclick=()=>{this.ui.contextMenu.classList.add('hidden');const it=this.itemById(this.context.trackId,this.context.itemId);if(!it)return;const t=prompt('Текст:',it.text);if(t!==null){this.pushHistory('Edit Text');it.text=t;this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview()}};
-  this.ui.ctxSplit.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.splitAtPlayhead()};
-  this.ui.ctxSplitCursor.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.splitAtCursor(this.context.cursorX)};
-  this.ui.ctxMergePrev.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.mergeSelectedWithPrev()};
-  this.ui.ctxMergeNext.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.mergeSelectedWithNext()};
-  this.ui.ctxDuplicate.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.duplicateSelected()};
-  this.ui.ctxAddLine.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.addNewLine()};
-  this.ui.ctxAddWord.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.addNewWord()};
-  this.ui.ctxBatchClose.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.batchCloseGapsCtx()};
-  this.ui.ctxBatchDist.onclick=()=>{this.ui.contextMenu.classList.add('hidden');const tr=this.activeTrack();if(tr&&this.selected.ids.size>1){const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);this.distributeItemsEvenly(items)}};
-  this.ui.ctxBatchNorm.onclick=()=>{this.ui.contextMenu.classList.add('hidden');const dur=this.num(prompt('Длительность (s):','1.0'),0);if(dur>0){const tr=this.activeTrack();if(!tr)return;this.pushHistory('Batch Norm');[...this.selected.ids].forEach(id=>{const it=this.itemById(tr.id,id);if(it)it.end=it.start+dur});this.markDirty();this.renderTimeline();this.renderInspector()}};
-  this.ui.ctxMovePlayhead.onclick=()=>{this.ui.contextMenu.classList.add('hidden');const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);if(!items.length)return;const t=this.audioElement.currentTime,minS=Math.min(...items.map(i=>i.start)),delta=t-minS;this.pushHistory('Move to Playhead');items.forEach(i=>{i.start+=delta;i.end+=delta});this.markDirty();this.renderTimeline();this.renderInspector()};
-  this.ui.ctxZoomSelection.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.zoomToSelection()};
-  this.ui.ctxScrollSelection.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.scrollToSelection()};
-  this.ui.ctxDelete.onclick=()=>{this.ui.contextMenu.classList.add('hidden');this.deleteSelected()};
-  this.ui.ctxSelTrack?.addEventListener('click',()=>{
-    this.ui.contextMenu.classList.add('hidden');
-    const tid=this.context.trackId,tr=this.trackById(tid);if(!tr)return;
-    this.selected.trackId=tid;
-    this.selected.ids=new Set(this.visibleItems(tr,this.ui.layerMode.value).map(i=>i.id));
-    this.renderTimeline();this.renderInspector();
+  const hide=()=>this.ui.contextMenu.classList.add('hidden');
+  const ctxMap={
+    ctxEdit:()=>{hide();this.runCommand('editText')},
+    ctxSplit:()=>{hide();this.runCommand('split')},
+    ctxSplitCursor:()=>{hide();this.runCommand('splitAtCursor')},
+    ctxMergePrev:()=>{hide();this.runCommand('mergePrev')},
+    ctxMergeNext:()=>{hide();this.runCommand('mergeNext')},
+    ctxDuplicate:()=>{hide();this.runCommand('duplicate')},
+    ctxAddLine:()=>{hide();this.runCommand('addLine')},
+    ctxAddWord:()=>{hide();this.runCommand('addWord')},
+    ctxBatchClose:()=>{hide();this.runCommand('batchCloseGaps')},
+    ctxBatchDist:()=>{hide();this.runCommand('batchDistribute')},
+    ctxBatchNorm:()=>{hide();this.runCommand('batchNormalize')},
+    ctxMovePlayhead:()=>{hide();this.runCommand('moveToPlayhead')},
+    ctxZoomSelection:()=>{hide();this.runCommand('zoomSelection')},
+    ctxScrollSelection:()=>{hide();this.runCommand('scrollSelection')},
+    ctxDelete:()=>{hide();this.runCommand('deleteSelected')},
+    ctxSelTrack:()=>{hide();this.runCommand('selTrack')}
+  };
+  Object.entries(ctxMap).forEach(([key,fn])=>{
+    if(this.ui[key])this.ui[key].onclick=fn;
   });
 },
 
 batchCloseGapsCtx(){
   const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
-  const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
-  const sorted=items.sort((a,b)=>a.start-b.start);
+  const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean).sort((a,b)=>a.start-b.start);
   this.pushHistory('Batch Close Gaps');
-  sorted.forEach((it,i)=>{if(i>0){it.start=sorted[i-1].end;it.end=Math.max(it.start+.02,it.end)}});
-  this.markDirty();this.renderTimeline();this.renderInspector();
+  items.forEach((it,i)=>{if(i>0){it.start=items[i-1].end;it.end=Math.max(it.start+.02,it.end)}});
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 /* ─── playback ───────────────────────────────────────────────────── */
@@ -1886,8 +2055,9 @@ setZoom(v,keepPlayhead){
   this.zoom=Math.max(10,Math.min(320,v));
   this.ui.zoomSlider.value=this.zoom;
   this.updateZoomReadout();
+  const sc=this.ui.timelineContainer;
   if(keepPlayhead){
-    const t=this.audioElement.currentTime,sc=this.ui.timelineContainer,w=sc.clientWidth;
+    const t=this.audioElement.currentTime;
     const relPos=t*oldZoom-sc.scrollLeft;
     this.fullRender();
     sc.scrollLeft=Math.max(0,t*this.zoom-relPos);
@@ -1922,7 +2092,7 @@ updateVolumeReadout(){
   this.ui.volumeSlider.value=Math.round(this.volume*100);
 },
 
-/* ─── preview ────────────────────────────────────────────────────── */
+/* ─── preview (improved word matching) ───────────────────────────── */
 renderPreview(){
   const t=this.audioElement.currentTime||0;
   const hasSolo=this.project.tracks.some(x=>x.solo);
@@ -1935,7 +2105,10 @@ renderPreview(){
   if(source===wordsTr&&!lineTr){
     const lines=wordsTr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start);
     lines.forEach(line=>{
-      const words=wordsTr.items.filter(i=>i.kind==='word'&&i.lineId===line.id).sort((a,b)=>a.start-b.start);
+      // match words by lineId first, fallback by time overlap
+      const words=wordsTr.items.filter(i=>i.kind==='word'&&(i.lineId===line.id||(
+        !i.lineId&&i.start>=line.start-.01&&i.end<=line.end+.1
+      ))).sort((a,b)=>a.start-b.start);
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===wordsTr.id&&this.selected.ids.has(line.id);
       html+=`<div class="lyric-line${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${wordsTr.id}">`;
@@ -1948,15 +2121,15 @@ renderPreview(){
       html+='</div>';
     });
   }else if(lineTr&&wordsTr){
-    // dual track preview
-    const lineItems=lineTr.items.sort((a,b)=>a.start-b.start);
-    lineItems.forEach(line=>{
+    lineTr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).forEach(line=>{
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===lineTr.id&&this.selected.ids.has(line.id);
       html+=`<div class="lyric-line preview-subline${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${lineTr.id}">`;
       html+=`<span class="preview-underlay">${this.esc(line.text)}</span>`;
-      // overlay matching words from wordsTr
-      const words=wordsTr.items.filter(i=>i.kind==='word'&&i.start>=line.start&&i.end<=line.end+.1).sort((a,b)=>a.start-b.start);
+      const words=wordsTr.items.filter(i=>i.kind==='word'&&(
+        (i.lineId&&wordsTr.items.find(l=>l.id===i.lineId&&l.start>=line.start-.01&&l.end<=line.end+.1))||
+        (!i.lineId&&i.start>=line.start-.01&&i.end<=line.end+.1)
+      )).sort((a,b)=>a.start-b.start);
       if(words.length){
         html+=' <span style="opacity:.7">|</span> ';
         words.forEach(w=>{
@@ -1967,9 +2140,7 @@ renderPreview(){
       html+='</div>';
     });
   }else{
-    // single line track
-    const lines=source.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start);
-    lines.forEach(line=>{
+    source.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).forEach(line=>{
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===source.id&&this.selected.ids.has(line.id);
       html+=`<div class="lyric-line${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${source.id}">${this.esc(line.text)}</div>`;
@@ -1977,26 +2148,22 @@ renderPreview(){
   }
 
   this.ui.lyricsContainer.innerHTML=html||'<p class="muted">Нет строк</p>';
-
-  // click-to-seek
   this.ui.lyricsContainer.querySelectorAll('.lyric-line').forEach(el=>{
     el.onclick=()=>{
-      const tid=el.dataset.tid,id=el.dataset.id;
-      const tr=this.trackById(tid),it=this.itemById(tid,id);
+      const tid=el.dataset.tid,id=el.dataset.id,it=this.itemById(tid,id);
       if(it){this.audioElement.currentTime=it.start;this.syncPlayhead();this.selectItem(tid,id)}
     };
   });
-
-  // auto-scroll to playing line
-  const playing=this.ui.lyricsContainer.querySelector('.lyric-line.playing');
-  if(playing)playing.scrollIntoView({block:'nearest',behavior:'smooth'});
+  const playingEl=this.ui.lyricsContainer.querySelector('.lyric-line.playing');
+  if(playingEl)playingEl.scrollIntoView({block:'nearest',behavior:'smooth'});
 },
 
-/* ─── export ─────────────────────────────────────────────────────── */
+/* ─── export (with normalization) ────────────────────────────────── */
 exportTrack(tr){
   if(!tr){alert('Нет дорожки для экспорта');return}
   try{
-    const json=this.serializeTrack(tr);
+    const normalized=this.normalizeTrackForExport(tr);
+    const json=this.serializeTrack(normalized);
     const blob=new Blob([JSON.stringify(json,null,2)],{type:'application/json'});
     this.downloadBlob(blob,tr.name+'_export.json');
   }catch(e){alert('Ошибка экспорта: '+e.message)}
@@ -2004,41 +2171,32 @@ exportTrack(tr){
 
 serializeTrack(tr){
   if(tr.type==='line'){
-    return [...tr.items].filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).map(i=>({time:+i.start.toFixed(3),line:i.text}));
+    return tr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start)
+      .map(i=>({time:+i.start.toFixed(3),line:i.text}));
   }
-  // words type
   const lines=tr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start);
   return lines.map(line=>{
     const words=tr.items.filter(i=>i.kind==='word'&&i.lineId===line.id).sort((a,b)=>a.start-b.start);
     return{
-      start:+line.start.toFixed(3),
-      end:+line.end.toFixed(3),
-      line:line.text,
+      start:+line.start.toFixed(3),end:+line.end.toFixed(3),line:line.text,
       words:words.map(w=>({
-        start:+w.start.toFixed(3),
-        end:+w.end.toFixed(3),
-        w:w.text,
+        start:+w.start.toFixed(3),end:+w.end.toFixed(3),w:w.text,
         chars:(w.chars||[]).map(c=>({c:c.c,start:+this.num(c.start,w.start).toFixed(3),end:+this.num(c.end,w.end).toFixed(3)}))
       }))
     };
   });
 },
 
-exportAll(){
-  this.project.tracks.forEach(tr=>this.exportTrack(tr));
-},
+exportAll(){this.project.tracks.forEach(tr=>this.exportTrack(tr))},
 
 exportZip(){
-  // Pure JS zip via stored files — uses concatenated blob trick (not real deflate, store only)
-  // For full deflate support user would need JSZip, but we implement store-only .zip
   try{
-    const files=this.project.tracks.map(tr=>({
-      name:tr.name+'_export.json',
-      data:new TextEncoder().encode(JSON.stringify(this.serializeTrack(tr),null,2))
-    }));
+    const files=this.project.tracks.map(tr=>{
+      const normalized=this.normalizeTrackForExport(tr);
+      return{name:tr.name+'_export.json',data:new TextEncoder().encode(JSON.stringify(this.serializeTrack(normalized),null,2))};
+    });
     if(!files.length){alert('Нет дорожек');return}
-    const blob=this.buildZipBlob(files);
-    this.downloadBlob(blob,'karaoke_export.zip');
+    this.downloadBlob(this.buildZipBlob(files),'karaoke_export.zip');
   }catch(e){alert('ZIP error: '+e.message);console.error(e)}
 },
 
@@ -2050,62 +2208,43 @@ buildZipBlob(files){
     const t=new Uint32Array(256);
     for(let i=0;i<256;i++){let n=i;for(let k=0;k<8;k++)n=n&1?0xEDB88320^(n>>>1):n>>>1;t[i]=n}
     for(let i=0;i<data.length;i++)c=t[(c^data[i])&255]^(c>>>8);
-    return (c^0xFFFFFFFF)>>>0;
+    return(c^0xFFFFFFFF)>>>0;
   };
-  const parts=[],cdirs=[];let offset=0;
-  const enc=new TextEncoder();
+  const parts=[],cdirs=[];let offset=0;const enc=new TextEncoder();
   files.forEach(f=>{
-    const nameB=enc.encode(f.name),data=f.data;
-    const crc=crc32(data),cs=data.length;
+    const nameB=enc.encode(f.name),data=f.data,crc=crc32(data),cs=data.length;
     const lh=new Uint8Array(30+nameB.length);
-    u32le(0x04034b50,lh,0);u16le(20,lh,4);u16le(0,lh,6);u16le(0,lh,8);
-    u16le(0,lh,10);u16le(0,lh,12);
-    u32le(crc,lh,14);u32le(cs,lh,18);u32le(cs,lh,22);
-    u16le(nameB.length,lh,26);u16le(0,lh,28);
-    lh.set(nameB,30);
+    u32le(0x04034b50,lh,0);u16le(20,lh,4);u32le(crc,lh,14);u32le(cs,lh,18);u32le(cs,lh,22);
+    u16le(nameB.length,lh,26);lh.set(nameB,30);
     const cd=new Uint8Array(46+nameB.length);
-    u32le(0x02014b50,cd,0);u16le(20,cd,4);u16le(20,cd,6);u16le(0,cd,8);u16le(0,cd,10);
-    u16le(0,cd,12);u16le(0,cd,14);
+    u32le(0x02014b50,cd,0);u16le(20,cd,4);u16le(20,cd,6);
     u32le(crc,cd,16);u32le(cs,cd,20);u32le(cs,cd,24);
-    u16le(nameB.length,cd,28);u16le(0,cd,30);u16le(0,cd,32);u16le(0,cd,34);u16le(0,cd,36);
-    u32le(0,cd,38);u32le(offset,cd,42);cd.set(nameB,46);
-    parts.push(lh,data);cdirs.push(cd);
-    offset+=lh.length+cs;
+    u16le(nameB.length,cd,28);u32le(offset,cd,42);cd.set(nameB,46);
+    parts.push(lh,data);cdirs.push(cd);offset+=lh.length+cs;
   });
   const cdSize=cdirs.reduce((s,c)=>s+c.length,0);
   const eocd=new Uint8Array(22);
-  u32le(0x06054b50,eocd,0);u16le(0,eocd,4);u16le(0,eocd,6);
-  u16le(files.length,eocd,8);u16le(files.length,eocd,10);
-  u32le(cdSize,eocd,12);u32le(offset,eocd,16);u16le(0,eocd,20);
+  u32le(0x06054b50,eocd,0);u16le(files.length,eocd,8);u16le(files.length,eocd,10);
+  u32le(cdSize,eocd,12);u32le(offset,eocd,16);
   return new Blob([...parts,...cdirs,eocd],{type:'application/zip'});
 },
 
 downloadBlob(blob,name){
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),3000);
 },
 
 /* ─── session / autosave ─────────────────────────────────────────── */
 buildSessionSnapshot(){
   return{
-    version:2,
-    ts:Date.now(),
-    zoom:this.zoom,
-    verticalZoom:this.verticalZoom,
-    snapStep:this.snapStep,
-    autoScroll:this.autoScroll,
-    volume:this.volume,
-    muted:this.muted,
-    autosaveEnabled:this.autosaveEnabled,
-    autosaveIntervalSec:this.autosaveIntervalSec,
-    loop:this.loop,
-    collapsed:{...this.collapsed},
+    version:2,ts:Date.now(),zoom:this.zoom,verticalZoom:this.verticalZoom,
+    snapStep:this.snapStep,autoScroll:this.autoScroll,volume:this.volume,muted:this.muted,
+    autosaveEnabled:this.autosaveEnabled,autosaveIntervalSec:this.autosaveIntervalSec,
+    loop:this.loop,collapsed:{...this.collapsed},
     project:JSON.parse(JSON.stringify(this.project)),
-    playheadTime:this.audioElement.currentTime||0,
-    keymap:{...this.keymap},
-    sidebarWidth:this.ui.sidebar.style.width,
-    dragMode:this.ui.dragMode.value,
-    layerMode:this.ui.layerMode.value,
-    scrollLeft:this.ui.timelineContainer.scrollLeft,
+    playheadTime:this.audioElement.currentTime||0,keymap:{...this.keymap},
+    sidebarWidth:this.ui.sidebar.style.width,dragMode:this.ui.dragMode.value,
+    layerMode:this.ui.layerMode.value,scrollLeft:this.ui.timelineContainer.scrollLeft,
     activeTrackId:this.project.activeTrackId
   };
 },
@@ -2113,12 +2252,10 @@ buildSessionSnapshot(){
 saveAutoDraft(key){
   try{
     const snap=this.buildSessionSnapshot();
-    const mainKey=this.DRAFT_KEY;
-    // rolling timestamped key для recent list (меняется каждые 5 минут)
     if(!this._draftKey||Date.now()-this._draftKeyTs>300000){this._draftKey='keDraft_'+Date.now();this._draftKeyTs=Date.now()}
     const rKey=key||this._draftKey;
-    localStorage.setItem(mainKey,JSON.stringify(snap));  // всегда для restore-on-launch
-    localStorage.setItem(rKey,JSON.stringify(snap));      // timestamped для recent list
+    localStorage.setItem(this.DRAFT_KEY,JSON.stringify(snap));
+    localStorage.setItem(rKey,JSON.stringify(snap));
     this.addToRecent(rKey,snap);
     this.updateSaveStatus('Autosaved',false);
   }catch(e){console.warn('Autosave failed',e);this.updateSaveStatus('Autosave error',true)}
@@ -2135,59 +2272,48 @@ async loadSessionFromFile(file){
   if(!file)return;
   try{
     const txt=await file.text(),snap=JSON.parse(txt);
-    this.applySnapshot(snap);
-    this.updateSaveStatus('Session loaded',false);
+    this.applySnapshot(snap);this.updateSaveStatus('Session loaded',false);
   }catch(e){alert('Ошибка загрузки сессии: '+e.message)}
 },
 
 applySnapshot(snap){
   if(!snap||!snap.project)return;
-  this.zoom=snap.zoom||80;
-  this.verticalZoom=snap.verticalZoom||1;
-  this.snapStep=snap.snapStep||0;
-  this.autoScroll=snap.autoScroll!==undefined?snap.autoScroll:true;
-  this.volume=snap.volume!==undefined?snap.volume:1;
-  this.muted=snap.muted||false;
+  this.zoom=snap.zoom||80;this.verticalZoom=snap.verticalZoom||1;
+  this.snapStep=snap.snapStep||0;this.autoScroll=snap.autoScroll!==undefined?snap.autoScroll:true;
+  this.volume=snap.volume!==undefined?snap.volume:1;this.muted=snap.muted||false;
   this.autosaveEnabled=snap.autosaveEnabled!==undefined?snap.autosaveEnabled:true;
   this.autosaveIntervalSec=snap.autosaveIntervalSec||10;
   this.loop=snap.loop||{enabled:false,start:null,end:null};
-  this.collapsed=snap.collapsed||{};
-  this.project=snap.project;
+  this.collapsed=snap.collapsed||{};this.project=snap.project;
   if(snap.keymap)this.keymap={...this.defaultKeymap(),...snap.keymap};
   if(snap.sidebarWidth)this.ui.sidebar.style.width=snap.sidebarWidth;
   if(snap.dragMode)this.ui.dragMode.value=snap.dragMode;
   if(snap.layerMode)this.ui.layerMode.value=snap.layerMode;
-  // restore ui controls
   this.ui.zoomSlider.value=this.zoom;
   this.ui.vzoomSlider.value=Math.round(this.verticalZoom*100);
   this.ui.autoScroll.checked=this.autoScroll;
   this.ui.autosaveEnabled.checked=this.autosaveEnabled;
   this.ui.autosaveInterval.value=this.autosaveIntervalSec;
   this.applyVol();this.updateVolumeReadout();this.updateZoomReadout();this.updateVZoomReadout();
-  this.restartAutosaveLoop();
-  this.fullRender();
+  this.restartAutosaveLoop();this.fullRender();
   if(snap.scrollLeft)setTimeout(()=>this.ui.timelineContainer.scrollLeft=snap.scrollLeft,120);
   if(snap.playheadTime)setTimeout(()=>{this.audioElement.currentTime=snap.playheadTime;this.syncPlayhead()},150);
 },
 
 restoreDraftFromStorage(key,force){
   try{
-    const raw=localStorage.getItem(key||this.DRAFT_KEY);
-    if(!raw)return false;
+    const raw=localStorage.getItem(key||this.DRAFT_KEY);if(!raw)return false;
     const snap=JSON.parse(raw);
     if(!force&&!snap.project)return false;
-    this.applySnapshot(snap);
-    this.updateSaveStatus('Draft restored',false);
-    return true;
+    this.applySnapshot(snap);this.updateSaveStatus('Draft restored',false);return true;
   }catch(e){console.warn('Restore failed',e);return false}
 },
 
 checkDraftOnLaunch(){
   try{
-    const raw=localStorage.getItem(this.DRAFT_KEY);
-    if(!raw)return;
+    const raw=localStorage.getItem(this.DRAFT_KEY);if(!raw)return;
     const snap=JSON.parse(raw);
-    if(!snap||!snap.project||!snap.project.tracks||!snap.project.tracks.length)return;
+    if(!snap?.project?.tracks?.length)return;
     const ts=snap.ts?new Date(snap.ts).toLocaleString():'неизвестно';
     this._pendingDraftKey=this.DRAFT_KEY;
     this.ui.restoreModalDesc.textContent=`Найден черновик от ${ts} (треков: ${snap.project.tracks.length}). Восстановить?`;
@@ -2196,24 +2322,16 @@ checkDraftOnLaunch(){
 },
 
 startAutosaveLoop(){
-  this.stopAutosaveLoop();
-  if(!this.autosaveEnabled)return;
+  this.stopAutosaveLoop();if(!this.autosaveEnabled)return;
   this.autosaveTimer=setInterval(()=>{if(this.dirty&&this.autosaveEnabled)this.saveAutoDraft()},this.autosaveIntervalSec*1000);
 },
-
 stopAutosaveLoop(){clearInterval(this.autosaveTimer);this.autosaveTimer=null},
 restartAutosaveLoop(){this.stopAutosaveLoop();this.startAutosaveLoop()},
 
-openRecentModals(){this.openRecentModal()},
-
-openRecentModal(){
-  this.renderRecentList();
-  this.ui.recentModal.classList.remove('hidden');
-},
+openRecentModal(){this.renderRecentList();this.ui.recentModal.classList.remove('hidden')},
 
 renderRecentList(){
-  const list=this.getRecentList();
-  const c=this.ui.recentList;
+  const list=this.getRecentList(),c=this.ui.recentList;
   if(!list.length){c.innerHTML='<p class="muted" style="padding:12px">Нет сохранённых черновиков</p>';return}
   c.innerHTML=list.map((r,i)=>`
     <div class="draft-row">
@@ -2223,30 +2341,17 @@ renderRecentList(){
       <button class="btn" data-ri-del="${i}">✕</button>
     </div>`).join('');
   c.querySelectorAll('[data-ri]').forEach(btn=>{
-    btn.onclick=()=>{
-      const r=list[+btn.dataset.ri];
-      this._pendingDraftKey=r.key;
-      this.ui.recentModal.classList.add('hidden');
-      this.restoreDraftFromStorage(r.key,true);
-    };
+    btn.onclick=()=>{const r=list[+btn.dataset.ri];this._pendingDraftKey=r.key;this.ui.recentModal.classList.add('hidden');this.restoreDraftFromStorage(r.key,true)};
   });
   c.querySelectorAll('[data-ri-del]').forEach(btn=>{
-    btn.onclick=()=>{
-      const r=list[+btn.dataset.riDel];
-      localStorage.removeItem(r.key);
-      this.removeFromRecent(r.key);
-      this.renderRecentList();
-    };
+    btn.onclick=()=>{const r=list[+btn.dataset.riDel];localStorage.removeItem(r.key);this.removeFromRecent(r.key);this.renderRecentList()};
   });
 },
 
-getRecentList(){
-  try{return JSON.parse(localStorage.getItem(this.RECENT_KEY)||'[]')}catch{return[]}
-},
+getRecentList(){try{return JSON.parse(localStorage.getItem(this.RECENT_KEY)||'[]')}catch{return[]}},
 
 addToRecent(key,snap){
-  let list=this.getRecentList();
-  list=list.filter(r=>r.key!==key);
+  let list=this.getRecentList().filter(r=>r.key!==key);
   list.unshift({key,ts:snap.ts,tracks:snap.project?.tracks?.length||0,name:snap.project?.tracks?.[0]?.name||''});
   if(list.length>this.MAX_RECENT)list=list.slice(0,this.MAX_RECENT);
   localStorage.setItem(this.RECENT_KEY,JSON.stringify(list));
@@ -2254,8 +2359,7 @@ addToRecent(key,snap){
 
 removeFromRecent(key){
   if(!key)return;
-  let list=this.getRecentList().filter(r=>r.key!==key);
-  localStorage.setItem(this.RECENT_KEY,JSON.stringify(list));
+  localStorage.setItem(this.RECENT_KEY,JSON.stringify(this.getRecentList().filter(r=>r.key!==key)));
 },
 
 clearAllDrafts(){
@@ -2310,8 +2414,8 @@ defaultKeymap(){
     'solo_active':{key:'3',desc:'Solo active track',ru:'Соло активной дорожки'},
     'lock_active':{key:'4',desc:'Lock/unlock active track',ru:'Заблокировать/разблокировать активную дорожку'},
     'loop_toggle':{key:'Ctrl+L',desc:'Toggle loop',ru:'Включить/выключить петлю'},
-    'add_line':{key:'Ctrl+Shift+L',desc:'Add new line at playhead',ru:'Добавить новую строку на позиции воспроизведения'},
-    'add_word':{key:'Ctrl+Shift+W',desc:'Add new word at playhead',ru:'Добавить новое слово на позиции воспроизведения'},
+    'add_line':{key:'Ctrl+Shift+L',desc:'Add new line at playhead',ru:'Добавить новую строку'},
+    'add_word':{key:'Ctrl+Shift+W',desc:'Add new word at playhead',ru:'Добавить новое слово'},
     'validate':{key:'Ctrl+Shift+V',desc:'Open validation panel',ru:'Открыть панель валидации'},
     'help':{key:'?',desc:'Open help',ru:'Открыть справку по клавишам'}
   };
@@ -2322,9 +2426,7 @@ initKeymap(){
   try{
     const saved=JSON.parse(localStorage.getItem(this.KM_KEY)||'{}');
     this.keymap={};
-    Object.keys(def).forEach(cmd=>{
-      this.keymap[cmd]={...def[cmd],...(saved[cmd]||{})};
-    });
+    Object.keys(def).forEach(cmd=>{this.keymap[cmd]={...def[cmd],...(saved[cmd]||{})}});
   }catch{this.keymap=this.defaultKeymap()}
 },
 
@@ -2338,9 +2440,7 @@ saveKeymap(){
   this.ui.hotkeysModal.classList.add('hidden');
 },
 
-closeHotkeysModal(){
-  this.hotkeysWaiting=null;this.ui.hotkeysModal.classList.add('hidden');
-},
+closeHotkeysModal(){this.hotkeysWaiting=null;this.ui.hotkeysModal.classList.add('hidden')},
 
 findHotkeyConflicts(){
   const map={};
@@ -2363,15 +2463,12 @@ renderHotkeysModal(){
   const q=(this.ui.hkSearch.value||'').toLowerCase();
   const conflicts=this.findHotkeyConflicts();
   const conflictKeys=new Set(conflicts.flatMap(c=>c.cmds));
-
-  if(conflicts.length){
-    this.ui.hotkeysConflicts.textContent='⚠ Конфликты: '+conflicts.map(c=>`"${c.keys}" (${c.cmds.join(', ')})`).join('; ');
-  }else{this.ui.hotkeysConflicts.textContent=''}
+  this.ui.hotkeysConflicts.textContent=conflicts.length
+    ?'⚠ Конфликты: '+conflicts.map(c=>`"${c.keys}" (${c.cmds.join(', ')})`).join('; '):'';
 
   const rows=Object.entries(this.keymap).filter(([cmd,cfg])=>!q||cmd.includes(q)||cfg.ru?.toLowerCase().includes(q)||cfg.key?.toLowerCase().includes(q));
   this.ui.hotkeysList.innerHTML=rows.map(([cmd,cfg])=>{
-    const isConflict=conflictKeys.has(cmd);
-    const isWaiting=this.hotkeysWaiting===cmd;
+    const isConflict=conflictKeys.has(cmd),isWaiting=this.hotkeysWaiting===cmd;
     return`<div class="hk-row" data-cmd="${cmd}">
       <span class="hk-name">${cfg.ru||cmd}</span>
       <div class="hk-key${isWaiting?' waiting':''}${isConflict?' conflict':''}">${isWaiting?'Press key…':(cfg.key||'—')}</div>
@@ -2382,17 +2479,12 @@ renderHotkeysModal(){
   }).join('');
 
   this.ui.hotkeysList.querySelectorAll('[data-set]').forEach(btn=>{
-    btn.onclick=()=>{
-      this.hotkeysWaiting=btn.dataset.set;
-      this.renderHotkeysModal();
-    };
+    btn.onclick=()=>{this.hotkeysWaiting=btn.dataset.set;this.renderHotkeysModal()};
   });
   this.ui.hotkeysList.querySelectorAll('[data-clear]').forEach(btn=>{
     btn.onclick=()=>{
-      const cmd=btn.dataset.clear;
-      if(this.keymap[cmd])this.keymap[cmd].key='';
-      this.hotkeysWaiting=null;
-      this.renderHotkeysModal();
+      if(this.keymap[btn.dataset.clear])this.keymap[btn.dataset.clear].key='';
+      this.hotkeysWaiting=null;this.renderHotkeysModal();
     };
   });
 },
@@ -2402,16 +2494,12 @@ captureHotkeyInput(e){
   e.preventDefault();e.stopPropagation();
   if(e.key==='Escape'){this.hotkeysWaiting=null;this.renderHotkeysModal();return true}
   const parts=[];
-  if(e.ctrlKey)parts.push('Ctrl');
-  if(e.altKey)parts.push('Alt');
-  if(e.shiftKey)parts.push('Shift');
+  if(e.ctrlKey)parts.push('Ctrl');if(e.altKey)parts.push('Alt');if(e.shiftKey)parts.push('Shift');
   const k=e.code==='Space'?'Space':e.key;
   if(!['Control','Alt','Shift','Meta'].includes(k))parts.push(k);
   const combo=parts.join('+');
   if(combo)this.keymap[this.hotkeysWaiting].key=combo;
-  this.hotkeysWaiting=null;
-  this.renderHotkeysModal();
-  return true;
+  this.hotkeysWaiting=null;this.renderHotkeysModal();return true;
 },
 
 matchHotkey(cmd,e){
@@ -2423,61 +2511,50 @@ matchHotkey(cmd,e){
          (e.key===keyPart||e.code===keyPart);
 },
 
-/* ─── global hotkeys handler ─────────────────────────────────────── */
+/* ─── hotkeys handler (command-map driven) ───────────────────────── */
+_hotkeyCommandMap(){
+  // Maps keymap command names → App command names
+  // Merge groups: commands that trigger the same action
+  return{
+    play_pause:'playPause',stop:'stop',
+    zoom_in:'zoomIn',zoom_in_num:'zoomIn',zoom_out:'zoomOut',zoom_out_num:'zoomOut',
+    vzoom_in:'vzoomIn',vzoom_out:'vzoomOut',
+    seek_left:'seekLeft',seek_right:'seekRight',
+    seek_left_big:'seekLeftBig',seek_right_big:'seekRightBig',
+    nudge_left:'nudgeLeft',nudge_right:'nudgeRight',
+    stretch_left:'stretchLeft',stretch_right:'stretchRight',
+    split:'split',merge_next:'mergeNext',merge_prev:'mergePrev',
+    duplicate:'duplicate',delete:'deleteSelected',delete_back:'deleteSelected',
+    select_all:'selectAll',deselect:'deselect',
+    undo:'undo',redo:'redo',redo2:'redo',
+    center_playhead:'centerPlayhead',fit_song:'fitSong',
+    zoom_selection:'zoomSelection',scroll_selection:'scrollSelection',
+    goto_sel_start:'gotoSelStart',
+    toggle_autoscroll:'toggleAutoscroll',toggle_snap:'toggleSnap',
+    save_json:'exportActive',open_hotkeys:'openHotkeys',
+    toggle_track:'switchTrack',
+    toggle_line_vis:'toggleLineVis',toggle_words_vis:'toggleWordsVis',
+    solo_active:'soloActive',lock_active:'lockActive',
+    loop_toggle:'loopToggle',add_line:'addLine',add_word:'addWord',
+    validate:'validate',help:'help'
+  };
+},
+
 handleHotkeys(e){
-  // skip if typing in input/textarea
   const tag=e.target.tagName;
   const isInput=tag==='INPUT'||tag==='TEXTAREA'||e.target.isContentEditable;
-
-  // hotkey capture mode always takes priority
   if(this.hotkeysWaiting){this.captureHotkeyInput(e);return}
-
-  // allow ctrl combos even inside inputs (save, undo, redo, etc.)
   const allowInInput=['undo','redo','redo2','save_json','open_hotkeys','select_all'];
   if(isInput&&!allowInInput.some(cmd=>this.matchHotkey(cmd,e)))return;
 
-  if(this.matchHotkey('play_pause',e)){e.preventDefault();this.togglePlay();return}
-  if(this.matchHotkey('stop',e)){e.preventDefault();this.audioElement.pause();this.audioElement.currentTime=0;this.syncPlayhead();this.ui.btnPlay.textContent='▶ Play';return}
-  if(this.matchHotkey('zoom_in',e)||this.matchHotkey('zoom_in_num',e)){e.preventDefault();this.setZoom(this.zoom+10,true);return}
-  if(this.matchHotkey('zoom_out',e)||this.matchHotkey('zoom_out_num',e)){e.preventDefault();this.setZoom(this.zoom-10,true);return}
-  if(this.matchHotkey('vzoom_in',e)){e.preventDefault();this.setVerticalZoom(this.verticalZoom+.1);return}
-  if(this.matchHotkey('vzoom_out',e)){e.preventDefault();this.setVerticalZoom(this.verticalZoom-.1);return}
-  if(this.matchHotkey('seek_left',e)){e.preventDefault();this.audioElement.currentTime=Math.max(0,this.audioElement.currentTime-.1);this.syncPlayhead();return}
-  if(this.matchHotkey('seek_right',e)){e.preventDefault();this.audioElement.currentTime=Math.min(this.duration||9999,this.audioElement.currentTime+.1);this.syncPlayhead();return}
-  if(this.matchHotkey('seek_left_big',e)){e.preventDefault();this.audioElement.currentTime=Math.max(0,this.audioElement.currentTime-1);this.syncPlayhead();return}
-  if(this.matchHotkey('seek_right_big',e)){e.preventDefault();this.audioElement.currentTime=Math.min(this.duration||9999,this.audioElement.currentTime+1);this.syncPlayhead();return}
-  if(this.matchHotkey('nudge_left',e)){e.preventDefault();this.nudgeSelected(-.05);return}
-  if(this.matchHotkey('nudge_right',e)){e.preventDefault();this.nudgeSelected(.05);return}
-  if(this.matchHotkey('stretch_left',e)){e.preventDefault();this.stretchSelected('left',-.05);return}
-  if(this.matchHotkey('stretch_right',e)){e.preventDefault();this.stretchSelected('right',.05);return}
-  if(this.matchHotkey('split',e)){e.preventDefault();this.splitAtPlayhead();return}
-  if(this.matchHotkey('merge_next',e)){e.preventDefault();this.mergeSelectedWithNext();return}
-  if(this.matchHotkey('merge_prev',e)){e.preventDefault();this.mergeSelectedWithPrev();return}
-  if(this.matchHotkey('duplicate',e)){e.preventDefault();this.duplicateSelected();return}
-  if(this.matchHotkey('delete',e)||this.matchHotkey('delete_back',e)){e.preventDefault();this.deleteSelected();return}
-  if(this.matchHotkey('select_all',e)){e.preventDefault();this.selectAll();return}
-  if(this.matchHotkey('deselect',e)){e.preventDefault();this.clearSelection();return}
-  if(this.matchHotkey('undo',e)){e.preventDefault();this.undo();return}
-  if(this.matchHotkey('redo',e)||this.matchHotkey('redo2',e)){e.preventDefault();this.redo();return}
-  if(this.matchHotkey('center_playhead',e)){e.preventDefault();this.centerOnPlayhead();return}
-  if(this.matchHotkey('fit_song',e)){e.preventDefault();this.fitSong();return}
-  if(this.matchHotkey('zoom_selection',e)){e.preventDefault();this.zoomToSelection();return}
-  if(this.matchHotkey('scroll_selection',e)){e.preventDefault();this.scrollToSelection();return}
-  if(this.matchHotkey('goto_sel_start',e)){e.preventDefault();this.gotoSelectionStart();return}
-  if(this.matchHotkey('toggle_autoscroll',e)){e.preventDefault();this.autoScroll=!this.autoScroll;this.ui.autoScroll.checked=this.autoScroll;return}
-  if(this.matchHotkey('toggle_snap',e)){e.preventDefault();const v=this.snapStep?0:.25;this.snapStep=v;this.ui.snapSelect.value=v;return}
-  if(this.matchHotkey('save_json',e)){e.preventDefault();this.exportTrack(this.activeTrack());return}
-  if(this.matchHotkey('open_hotkeys',e)){e.preventDefault();this.openHotkeysModal();return}
-  if(this.matchHotkey('toggle_track',e)){e.preventDefault();this.switchActiveTrack();return}
-  if(this.matchHotkey('toggle_line_vis',e)){e.preventDefault();const tr=this.trackByType('line');if(tr)this.toggleTrackProp(tr.id,'visible');return}
-  if(this.matchHotkey('toggle_words_vis',e)){e.preventDefault();const tr=this.trackByType('words');if(tr)this.toggleTrackProp(tr.id,'visible');return}
-  if(this.matchHotkey('solo_active',e)){e.preventDefault();const tr=this.activeTrack();if(tr)this.toggleTrackProp(tr.id,'solo');return}
-  if(this.matchHotkey('lock_active',e)){e.preventDefault();const tr=this.activeTrack();if(tr)this.toggleTrackProp(tr.id,'locked');return}
-  if(this.matchHotkey('loop_toggle',e)){e.preventDefault();if(this.loop.enabled)this.clearLoop();else this.openLoopModal();return}
-  if(this.matchHotkey('add_line',e)){e.preventDefault();this.addNewLine();return}
-  if(this.matchHotkey('add_word',e)){e.preventDefault();this.addNewWord();return}
-  if(this.matchHotkey('validate',e)){e.preventDefault();this.openValidationModal();return}
-  if(this.matchHotkey('help',e)){e.preventDefault();this.openHelpModal();return}
+  const map=this._hotkeyCommandMap();
+  for(const [hkCmd,appCmd] of Object.entries(map)){
+    if(this.matchHotkey(hkCmd,e)){
+      e.preventDefault();
+      this.runCommand(appCmd);
+      return;
+    }
+  }
 },
 
 nudgeSelected(delta){
@@ -2487,7 +2564,7 @@ nudgeSelected(delta){
     const it=this.itemById(tr.id,id);if(!it)return;
     it.start=Math.max(0,it.start+delta);it.end=Math.max(it.start+.02,it.end+delta);
   });
-  this.markDirty();this.renderTimeline();this.renderInspector();
+  this.markDirty();this.afterEdit();
 },
 
 stretchSelected(side,delta){
@@ -2498,7 +2575,7 @@ stretchSelected(side,delta){
     if(side==='left')it.start=Math.max(0,Math.min(it.end-.02,it.start+delta));
     else it.end=Math.max(it.start+.02,it.end+delta);
   });
-  this.markDirty();this.renderTimeline();this.renderInspector();
+  this.markDirty();this.afterEdit();
 },
 
 switchActiveTrack(){
@@ -2509,11 +2586,10 @@ switchActiveTrack(){
 
 /* ─── validation ─────────────────────────────────────────────────── */
 openValidationModal(){
-  this.ui.validationList.innerHTML=this.runValidation().map(v=>`
-    <div class="validation-item ${v.sev}">
-      <span class="vi-badge">${v.sev.toUpperCase()}</span>
-      <span>${v.msg}</span>
-    </div>`).join('')||'<div class="validation-item ok"><span class="vi-badge">OK</span><span>Всё в порядке!</span></div>';
+  const results=this.runValidation();
+  this.ui.validationList.innerHTML=results.length
+    ?results.map(v=>`<div class="validation-item ${v.sev}"><span class="vi-badge">${v.sev.toUpperCase()}</span><span>${v.msg}</span></div>`).join('')
+    :'<div class="validation-item ok"><span class="vi-badge">OK</span><span>Всё в порядке!</span></div>';
   this.ui.validationModal.classList.remove('hidden');
 },
 
@@ -2523,7 +2599,7 @@ runValidation(){
   this.project.tracks.forEach(tr=>{
     const sorted=[...tr.items].sort((a,b)=>a.start-b.start);
     let prevEnd=-1,prevKind=null;
-    sorted.forEach((it,i)=>{
+    sorted.forEach(it=>{
       if(it.start<0)out.push({sev:'err',msg:`[${tr.name}] "${it.text}" start < 0 (${it.start.toFixed(3)})`});
       if(it.end<=it.start)out.push({sev:'err',msg:`[${tr.name}] "${it.text}" end <= start`});
       if(it.kind===prevKind&&it.start<prevEnd-1e-4)out.push({sev:'warn',msg:`[${tr.name}] Перекрытие: "${it.text}" (${it.start.toFixed(3)}) до ${prevEnd.toFixed(3)}`});
@@ -2538,8 +2614,8 @@ runValidation(){
           if(it.end>line.end+.01)out.push({sev:'err',msg:`[${tr.name}] Слово "${it.text}" заканчивается позже строки`});
         }
         (it.chars||[]).forEach((ch,ci)=>{
-          if(this.num(ch.start,it.start)<it.start-.01)out.push({sev:'warn',msg:`[${tr.name}] Символ ${ci} "${ch.c}" в слове "${it.text}" начинается раньше слова`});
-          if(this.num(ch.end,it.end)>it.end+.01)out.push({sev:'warn',msg:`[${tr.name}] Символ ${ci} "${ch.c}" в слове "${it.text}" заканчивается позже слова`});
+          if(this.num(ch.start,it.start)<it.start-.01)out.push({sev:'warn',msg:`[${tr.name}] Char ${ci} "${ch.c}" в "${it.text}" начинается раньше слова`});
+          if(this.num(ch.end,it.end)>it.end+.01)out.push({sev:'warn',msg:`[${tr.name}] Char ${ci} "${ch.c}" в "${it.text}" заканчивается позже слова`});
         });
       }
     });
@@ -2566,10 +2642,8 @@ autoFixOverlaps(){
 
 /* ─── virtual keyboard modal ─────────────────────────────────────── */
 openVkbdModal(){
-  // Build reverse map: key -> [commands]
   const km=this.keymap,rev={};
-  Object.entries(km).forEach(([cmd,cfg])=>{if(cfg.key)rev[cfg.key]=(rev[cfg.key]||[]). concat(cmd)});
-  // Layout rows (simplified QWERTY)
+  Object.entries(km).forEach(([cmd,cfg])=>{if(cfg.key)rev[cfg.key]=(rev[cfg.key]||[]).concat(cmd)});
   const rows=[
     ['Escape','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'],
     ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
@@ -2579,28 +2653,22 @@ openVkbdModal(){
     ['Ctrl','Alt','Space','Alt','Ctrl']
   ];
   const getCmd=k=>{
-    const candidates=[k,k.toUpperCase(),k.toLowerCase()];
-    for(const c of candidates){if(rev[c])return rev[c].map(cmd=>km[cmd]?.ru||cmd).join(' / ')}
-    // check with modifiers shown separately
+    for(const c of[k,k.toUpperCase(),k.toLowerCase()]){if(rev[c])return rev[c].map(cmd=>km[cmd]?.ru||cmd).join(' / ')}
     return null;
   };
-  const html=rows.map(row=>'<div style="display:flex;gap:3px;margin-bottom:3px">'+
+  this.ui.vkbdDisplay.innerHTML=rows.map(row=>'<div style="display:flex;gap:3px;margin-bottom:3px">'+
     row.map(k=>{
       const cmd=getCmd(k);
       const bg=cmd?'background:#1e3a2e;border-color:#43a047':'background:#1b1f27;border-color:#465063';
-      return `<div title="${cmd||k}" style="${bg};border:1px solid;border-radius:4px;padding:3px 5px;min-width:32px;text-align:center;font-size:10px;cursor:default;position:relative">
+      return `<div title="${cmd||k}" style="${bg};border:1px solid;border-radius:4px;padding:3px 5px;min-width:32px;text-align:center;font-size:10px;cursor:default">
         <div style="font-weight:700;font-size:11px">${k.length>4?k.slice(0,4):k}</div>
         ${cmd?`<div style="font-size:9px;color:#7bd882;overflow:hidden;max-width:56px;text-overflow:ellipsis;white-space:nowrap">${cmd}</div>`:''}
       </div>`;
-    }).join('')
-  +'</div>').join('');
-  this.ui.vkbdDisplay.innerHTML=html;
+    }).join('')+'</div>').join('');
   this.ui.vkbdHint.textContent='';
-  // live key preview
   this._vkbdKeyHandler=ev=>{
-    const k=ev.key;
-    const cmd=Object.entries(km).find(([,c])=>c.key&&(c.key===k||c.key.endsWith('+'+k)));
-    this.ui.vkbdHint.textContent=cmd?`${k} → ${cmd[1].ru||cmd[0]}`:`${k} — не назначено`;
+    const cmd=Object.entries(km).find(([,c])=>c.key&&(c.key===ev.key||c.key.endsWith('+'+ev.key)));
+    this.ui.vkbdHint.textContent=cmd?`${ev.key} → ${cmd[1].ru||cmd[0]}`:`${ev.key} — не назначено`;
   };
   document.addEventListener('keydown',this._vkbdKeyHandler);
   this.ui.btnVkbdClose.onclick=()=>{
@@ -2612,14 +2680,13 @@ openVkbdModal(){
 
 /* ─── help modal ─────────────────────────────────────────────────── */
 openHelpModal(){
-  const rows=Object.entries(this.keymap).map(([,cfg])=>`
+  this.ui.helpList.innerHTML=Object.entries(this.keymap).map(([,cfg])=>`
     <div class="hk-row">
       <span class="hk-name">${cfg.ru||cfg.desc}</span>
       <div class="hk-key">${cfg.key||'—'}</div>
       <span></span><span></span>
       <span class="hk-desc">${cfg.desc}</span>
     </div>`).join('');
-  this.ui.helpList.innerHTML=rows;
   this.ui.helpModal.classList.remove('hidden');
 },
 
@@ -2634,8 +2701,7 @@ startResize(e,target){
 handleResize(e){
   const {target,startX,startY,startDim}=this.resize;
   if(target==='sidebar'){
-    const w=Math.max(260,Math.min(820,startDim-(e.clientX-startX)));
-    this.ui.sidebar.style.width=w+'px';
+    this.ui.sidebar.style.width=Math.max(260,Math.min(820,startDim-(e.clientX-startX)))+'px';
   }else{
     const h=Math.max(130,Math.min(600,startDim+(e.clientY-startY)));
     this.ui.inspectorPanel.style.flex='none';this.ui.inspectorPanel.style.height=h+'px';
@@ -2740,26 +2806,26 @@ createWordsFromLine(tr,it){
     tr.items.push({id:'W_'+this.uid(),kind:'word',lineId:it.id,
       start:it.start+i*dur,end:it.start+(i+1)*dur-.005,text:w,chars:[]});
   });
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 collapseWordToLine(tr,it){
   if(it.kind!=='word'||tr.type!=='words')return;
   const line=tr.items.find(l=>l.kind==='line'&&l.id===it.lineId);if(!line)return;
   this.pushHistory('Collapse to Line');
-  // remove all words for this line, keep only line
   const wordsOfLine=tr.items.filter(i=>i.kind==='word'&&i.lineId===it.lineId);
   if(wordsOfLine.length){
     const minS=Math.min(...wordsOfLine.map(w=>w.start)),maxE=Math.max(...wordsOfLine.map(w=>w.end));
-    const txt=wordsOfLine.map(w=>w.text).join(' ');
-    line.start=Math.min(line.start,minS);line.end=Math.max(line.end,maxE);line.text=txt;
+    line.start=Math.min(line.start,minS);line.end=Math.max(line.end,maxE);
+    line.text=wordsOfLine.map(w=>w.text).join(' ');
     tr.items=tr.items.filter(i=>!(i.kind==='word'&&i.lineId===it.lineId));
   }
-  this.clearSelection();this.sortTrack(tr);this.markDirty();this.renderTimeline();this.renderInspector();this.renderPreview();
+  this.clearSelection();this.normalizeTrackAfterEdit(tr);
+  this.markDirty();this.afterEdit();
 },
 
 recalcTrackLines(tr){
-  // ensure words have correct lineId based on time overlap
   const lines=tr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start);
   tr.items.filter(i=>i.kind==='word').forEach(w=>{
     if(!w.lineId){
