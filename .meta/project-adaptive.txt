@@ -61,12 +61,18 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── 01/
 │   │   │   └── 502b13e19cf0e0a38e7168405fc4a28e65338e
+│   │   ├── 09/
+│   │   │   └── de1863709c7dd00eeb09587ed2c60898db7a02
 │   │   ├── 0a/
 │   │   │   └── a4fd078cbb8a293d46cd3a6eac4a1763093c04
 │   │   ├── 0d/
 │   │   │   └── bb4111e53a3671a09ccde8c5fc337b3f5a94cc
 │   │   ├── 10/
 │   │   │   └── 0ae4bd3cfe468c7c484db5d0ba6c0371c90310
+│   │   ├── 14/
+│   │   │   └── 7751def38acab588dd4a6ae3ac5ca7c09ae95f
+│   │   ├── 1a/
+│   │   │   └── 2c3cf6c297dec3077bc80acb01eb00cfd59af6
 │   │   ├── 1d/
 │   │   │   └── 7927a45c96a97a4c086b89f1dff2be9d233fe9
 │   │   ├── 25/
@@ -97,6 +103,7 @@ vi3na1bita_lyric/
 │   │   │   ├── 7d475f2e684cadc02cdee1542fbefbb1175928
 │   │   │   └── cf869efbccbf89de2fd1e496314220530e52be
 │   │   ├── 5a/
+│   │   │   ├── 4fd5275380f06a84f2bdabd66251dd3257f554
 │   │   │   └── 798f40fd974fb256e65855e2c361b4225c0f19
 │   │   ├── 5e/
 │   │   │   └── 4d559a1bdfedcc4e333e937e2c9d3cded2d3ae
@@ -114,11 +121,14 @@ vi3na1bita_lyric/
 │   │   ├── 7d/
 │   │   │   └── d0e1c9dda0ac791e027049e79b739e1400dcbc
 │   │   ├── 7e/
+│   │   │   ├── 65b664ba745607ef4c6281bcac328fecb98267
 │   │   │   └── 6f2b444c4771f24a9640cb7e742ae63a2c1b34
 │   │   ├── 83/
 │   │   │   └── 2e308bbaaa69535c6601bd2a6979be922a88f7
 │   │   ├── 86/
 │   │   │   └── 44e5658d284e195e509804bfec27cb95a1053e
+│   │   ├── 8c/
+│   │   │   └── 1d05996de6c44660ad232f53ab0fd4171e1869
 │   │   ├── 92/
 │   │   │   └── ed0ccb986f4f65da7f7c60cf707407db68579b
 │   │   ├── 94/
@@ -131,6 +141,8 @@ vi3na1bita_lyric/
 │   │   │   └── bce7ebf9f57b918eb8cff46b74bf868cf0beca
 │   │   ├── aa/
 │   │   │   └── c42fef5e995511fdd9e9bcb3ae30817972e05d
+│   │   ├── b1/
+│   │   │   └── 50de6adeffc070f538817b7a392986d7d23985
 │   │   ├── b3/
 │   │   │   └── 08eb0773780cf7587f7eec71d282dbb512c05b
 │   │   ├── b4/
@@ -149,6 +161,8 @@ vi3na1bita_lyric/
 │   │   │   └── e569cbcceac6ad11a32c3d9cb9a9191d3137ed
 │   │   ├── f2/
 │   │   │   └── 005e98c8bf0a1e4db01d8e51d93a8cfd8461a8
+│   │   ├── f6/
+│   │   │   └── 6939449aa94b03ddcf90077b6d99aa52a07aa6
 │   │   ├── f7/
 │   │   │   └── 97ce97ab08f9d3f4fdfe8da23c19b485230d67
 │   │   ├── fb/
@@ -169,11 +183,9 @@ vi3na1bita_lyric/
 │   ├── HEAD
 │   └── index
 ├── .github/
-│   ├── workflows/
-│   │   ├── generate-context.yml
-│   │   └── vi3na1bita_lyric
-│   └── workflows /
-│       └── generate-context.yml
+│   └── workflows/
+│       ├── generate-context.yml
+│       └── vi3na1bita_lyric
 ├── .meta/
 ├── ai-rules.txt
 ├── generate-context.js
@@ -181,7 +193,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 18:20:25 UTC
+Сгенерировано: 2026-03-09 18:20:37 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -1050,32 +1062,6 @@ escTA(s){return this.esc(String(s??''))},
 escAttr(s){return String(s??'').replace(/"/g,'&quot;')}
 };
 document.addEventListener('DOMContentLoaded',()=>App.init());
-
-//=================================================
-// FILE: /.github/workflows /generate-context.yml
-name: Generate .meta context
-on:
-  push:
-    branches: [main, master]
-    paths-ignore: ['.meta/**']
-  workflow_dispatch:
-permissions: { contents: write }
-jobs:
-  meta:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: node generate-context.js --mode=both --max-lines=20000 && ls -la .meta || true
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "CI: generate .meta context"
-          branch: ${{ github.ref_name }}
-          file_pattern: ".meta/**"
-          commit_user_name: github-actions[bot]
-          commit_user_email: github-actions[bot]@users.noreply.github.com
 
 //=================================================
 // FILE: /generate-context.js
