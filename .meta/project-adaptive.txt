@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-6c54fc8593e67298dcb9805ed43f1a474d4c3f96.idx
-│   │       ├── pack-6c54fc8593e67298dcb9805ed43f1a474d4c3f96.pack
-│   │       └── pack-6c54fc8593e67298dcb9805ed43f1a474d4c3f96.rev
+│   │       ├── pack-787168a6e8fdf6f04b3850e028baf50ae94c4b00.idx
+│   │       ├── pack-787168a6e8fdf6f04b3850e028baf50ae94c4b00.pack
+│   │       └── pack-787168a6e8fdf6f04b3850e028baf50ae94c4b00.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 20:00:13 UTC
+Сгенерировано: 2026-03-09 20:00:53 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -330,6 +330,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
       <button class="btn" id="btn-recent">🕐 Drafts</button>
       <button class="btn" id="btn-hotkeys">⌨ Hotkeys</button>
       <button class="btn" id="btn-help">? Help</button>
+      <button class="btn" id="btn-vkbd">⌨ KBD</button>
     </div>
     <div class="grp">
       <button class="btn pri" id="btn-play">▶ Play</button>
@@ -570,6 +571,19 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
     <div class="modal-actions">
       <button class="btn pri" id="btn-loop-ok">Set Loop</button>
       <button class="btn" id="btn-loop-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Virtual Keyboard modal -->
+<div id="vkbd-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card" style="max-width:780px">
+    <h3>⌨ Visual Keyboard Map</h3>
+    <p>Назначенные горячие клавиши на схеме клавиатуры. Нажми клавишу — увидишь команду.</p>
+    <div id="vkbd-display" style="font-family:Consolas,monospace;font-size:12px;line-height:1.8;background:#111317;border:1px solid #343844;border-radius:8px;padding:12px;overflow:auto;flex:1"></div>
+    <div id="vkbd-hint" style="margin-top:8px;font-size:12px;color:#ff9800;min-height:18px"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-vkbd-close">Close</button>
     </div>
   </div>
 </div>
