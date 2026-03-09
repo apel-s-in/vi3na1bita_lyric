@@ -73,9 +73,12 @@ vi3na1bita_lyric/
 │   │   │   └── a4fd078cbb8a293d46cd3a6eac4a1763093c04
 │   │   ├── 0d/
 │   │   │   └── bb4111e53a3671a09ccde8c5fc337b3f5a94cc
+│   │   ├── 0e/
+│   │   │   └── d9765b1ddee3ee4d3314bc951e4f0720466aad
 │   │   ├── 10/
 │   │   │   └── 0ae4bd3cfe468c7c484db5d0ba6c0371c90310
 │   │   ├── 12/
+│   │   │   ├── 184980e79780faaa932d9919901e18cf82cfeb
 │   │   │   └── 2b4ceac723952bf07d5d6c396f3b5f8d162b12
 │   │   ├── 14/
 │   │   │   └── 7751def38acab588dd4a6ae3ac5ca7c09ae95f
@@ -86,6 +89,8 @@ vi3na1bita_lyric/
 │   │   │   └── 2c3cf6c297dec3077bc80acb01eb00cfd59af6
 │   │   ├── 1d/
 │   │   │   └── 7927a45c96a97a4c086b89f1dff2be9d233fe9
+│   │   ├── 24/
+│   │   │   └── 53bbb56d29f0f8e2440943b5c66b76684c0d4c
 │   │   ├── 25/
 │   │   │   └── 528f2fd9d38859d05977907e8797958b1b9949
 │   │   ├── 26/
@@ -124,6 +129,8 @@ vi3na1bita_lyric/
 │   │   ├── 55/
 │   │   │   ├── 84801396416c22051fda28c0dbb533f4de62c5
 │   │   │   └── b65e7ec9422db1c57efc2e9f1eaabc47750433
+│   │   ├── 56/
+│   │   │   └── c0636c1c26131c0e3ee4a15f321e461a5e9c65
 │   │   ├── 58/
 │   │   │   ├── 7d475f2e684cadc02cdee1542fbefbb1175928
 │   │   │   └── cf869efbccbf89de2fd1e496314220530e52be
@@ -132,11 +139,14 @@ vi3na1bita_lyric/
 │   │   │   └── 798f40fd974fb256e65855e2c361b4225c0f19
 │   │   ├── 5e/
 │   │   │   └── 4d559a1bdfedcc4e333e937e2c9d3cded2d3ae
+│   │   ├── 5f/
+│   │   │   └── 71150287830c223cc59e5bbe914aefd63cc17c
 │   │   ├── 61/
 │   │   │   ├── 57f90ec1b0f24f74c5e69eebb55a2813503867
 │   │   │   └── d712c8b2ad3e6822cb19ef83858ea048fc4a89
 │   │   ├── 65/
-│   │   │   └── 0c596e73c4e01572ae5eb1768e30a3b3d15bb9
+│   │   │   ├── 0c596e73c4e01572ae5eb1768e30a3b3d15bb9
+│   │   │   └── ba246991901dcb9b23900527d672f7b5ebc7bc
 │   │   ├── 67/
 │   │   │   └── be39212809f2382e5647bce78c14459f1641d0
 │   │   ├── 68/
@@ -145,6 +155,8 @@ vi3na1bita_lyric/
 │   │   ├── 71/
 │   │   │   ├── 732c6af54a7e2b6f1f5dffcb7d30a88fdf93d8
 │   │   │   └── fe2c96a1128f76de46c56aa97b29e382056186
+│   │   ├── 74/
+│   │   │   └── 5dde0d626ab89326bd8809c16d2091de5caa0e
 │   │   ├── 79/
 │   │   │   └── 93643e0ba6c52a8d99e0470f3fce523e9ae925
 │   │   ├── 7a/
@@ -175,7 +187,8 @@ vi3na1bita_lyric/
 │   │   │   ├── 99a28dc5d55aa3568ab1359e5902fb192621c6
 │   │   │   └── ccde770b153c26b8b8487ab7095d6df3e33071
 │   │   ├── 99/
-│   │   │   └── 9f5b0402fa4d657438b89d5bb10412efcef490
+│   │   │   ├── 9f5b0402fa4d657438b89d5bb10412efcef490
+│   │   │   └── f3a2cffbaa153984690408489585b70f05c2be
 │   │   ├── 9d/
 │   │   │   └── 0ceec21d687686e7598d13b99768d74a229d89
 │   │   ├── a4/
@@ -250,7 +263,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 18:46:39 UTC
+Сгенерировано: 2026-03-09 18:47:52 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -309,11 +322,13 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
 .track-headers{position:absolute;top:0;left:8px;z-index:40;pointer-events:auto;display:flex;flex-direction:column;gap:8px}
 .track-head{position:absolute;left:0;min-width:230px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:4px 6px;display:flex;align-items:center;gap:6px;font-size:11px}
 .track-head.active{box-shadow:0 0 0 1px #fff inset}
-.track-head .nm{font-weight:700;min-width:52px}
+.track-head .nm{font-weight:700;min-width:52px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .track-head .tp{opacity:.85}
+.track-head .track-color{width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,.35);flex:0 0 auto}
 .track-head button{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #556;cursor:pointer;background:#2d3340;color:#eee}
 .track-head button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .track-head button.locked{background:#8b3d3d;border-color:#a55}
+.track-head button.collapsed{background:#5c4a1f;border-color:#8a6d2d}
 .tracks{position:absolute;top:120px;left:0;right:0;bottom:0;padding-bottom:90px;z-index:10}
 .track-item{position:absolute;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:500;user-select:none;cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 10px;min-width:4px;text-shadow:1px 1px 1px rgba(0,0,0,.55)}
 .track-item:active{cursor:grabbing}
@@ -350,12 +365,18 @@ input[type=range]{accent-color:var(--acc)}.ro{font-size:12px;color:var(--mut);mi
 .char-row{display:grid;grid-template-columns:40px 1fr 1fr;gap:6px;margin-bottom:6px}.char-row input{width:100%}
 .hotkeys-card{width:min(820px,calc(100vw - 40px));max-height:85vh;display:flex;flex-direction:column}
 .hotkeys-list{overflow:auto;max-height:55vh;border:1px solid var(--br);border-radius:8px;padding:8px;background:#111317}
-.hk-row{display:grid;grid-template-columns:180px 140px 90px 1fr;gap:8px;align-items:center;padding:6px;border-bottom:1px solid rgba(255,255,255,.05)}
+.hk-row{display:grid;grid-template-columns:180px 140px 90px 90px 1fr;gap:8px;align-items:center;padding:6px;border-bottom:1px solid rgba(255,255,255,.05)}
 .hk-row:last-child{border-bottom:0}
 .hk-name{font-weight:700}
 .hk-key{font-family:Consolas,monospace;background:#1b1f27;border:1px solid #465063;border-radius:4px;padding:6px 8px;min-height:30px;display:flex;align-items:center}
 .hk-key.waiting{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.hk-key.conflict{border-color:#ff9800;box-shadow:0 0 0 1px #ff9800 inset}
 .hk-desc{color:var(--mut);font-size:12px}
+.validation-item{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
+.validation-item.warn{color:#ffcc80}
+.validation-item.err{color:#ff8a80}
+.validation-item.ok{color:#9be7a5}
+.help-item{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
 .batch-box{margin-top:12px;padding:10px;border:1px solid var(--br);border-radius:8px;background:rgba(255,255,255,.02)}
 .batch-box h4{font-size:12px;margin-bottom:8px;color:#c8cfdd}
 .batch-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
