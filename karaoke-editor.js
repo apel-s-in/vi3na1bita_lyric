@@ -85,7 +85,7 @@ cache(){
     ctxDuplicate:g('ctx-duplicate'),ctxAddLine:g('ctx-add-line'),ctxAddWord:g('ctx-add-word'),
     ctxBatchClose:g('ctx-batch-close'),ctxBatchDist:g('ctx-batch-dist'),ctxBatchNorm:g('ctx-batch-norm'),
     ctxMovePlayhead:g('ctx-move-playhead'),ctxZoomSelection:g('ctx-zoom-selection'),
-    ctxScrollSelection:g('ctx-scroll-selection'),ctxDelete:g('ctx-delete'),
+    ctxScrollSelection:g('ctx-scroll-selection'),ctxSelTrack:g('ctx-sel-track'),ctxDelete:g('ctx-delete'),
     restoreModal:g('restore-modal'),restoreModalDesc:g('restore-modal-desc'),
     btnRestoreYes:g('btn-restore-yes'),btnRestoreNo:g('btn-restore-no'),btnRestoreDelete:g('btn-restore-delete'),
     recentModal:g('recent-modal'),recentList:g('recent-list'),
@@ -600,10 +600,17 @@ handleTimelineMouseDown(e){
     return;
   }
 
-  // Ruler seek
+  // Ruler: Shift+drag = set loop, plain click = seek
   if(e.target===this.ui.rulerCanvas){
-    const px=e.clientX-this.ui.scrollArea.getBoundingClientRect().left+this.ui.timelineContainer.scrollLeft;
+    const rect=this.ui.scrollArea.getBoundingClientRect();
+    const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
     const t=Math.max(0,px/this.zoom);
+    if(e.shiftKey){
+      // начинаем drag для loop
+      this._loopDrag={active:true,startT:t};
+      this.loop={enabled:false,start:t,end:t};
+      return;
+    }
     this.audioElement.currentTime=t;this.syncPlayhead();return;
   }
 
@@ -623,6 +630,14 @@ handleGlobalMouseMove(e){
   }
 
   if(this.charDrag.active){this.handleCharDragMove(e);return}
+  if(this._loopDrag?.active){
+    const rect=this.ui.scrollArea.getBoundingClientRect();
+    const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
+    const t=Math.max(0,px/this.zoom);
+    const s=Math.min(this._loopDrag.startT,t),en=Math.max(this._loopDrag.startT,t);
+    this.loop={enabled:en-s>.05,start:s,end:en};
+    this.renderLoopRegion();return;
+  }
 
   if(this.drag.active){
     const dx=(e.clientX-this.drag.startX)/this.zoom;
@@ -708,6 +723,11 @@ handleGlobalMouseUp(){
     this.drag={active:false};
     this.renderTimeline();this.renderInspector();return;
   }
+  if(this._loopDrag?.active){
+    this._loopDrag.active=false;
+    if(this.loop.end-this.loop.start<.05)this.loop.enabled=false;
+    this.renderLoopRegion();return;
+  }
   if(this.marquee.active){
     this.finalizeMarquee();
     this.marquee.active=false;
@@ -722,16 +742,29 @@ finalizeMarquee(){
   if(!sb||sb.classList.contains('hidden'))return;
   const sl=parseInt(sb.style.left)||0,st=parseInt(sb.style.top)||0;
   const sr=sl+(parseInt(sb.style.width)||0),sb2=st+(parseInt(sb.style.height)||0);
+  if(sr-sl<4&&sb2-st<4){this.renderTimeline();this.renderInspector();return}// no tiny marquee
   const wh=Math.round(80*this.verticalZoom),row=Math.round(56*this.verticalZoom),lh=Math.round(34*this.verticalZoom);
+  const soloActive=this.project.tracks.some(t=>t.solo);
+  // marquee selects on activeTrack only (multi-track select requires same trackId)
+  // but we find which track the marquee box overlaps vertically and select items there
+  let hitTid=null;
   this.project.tracks.forEach((tr,ti)=>{
-    if(!tr.visible||tr.id!==this.project.activeTrackId)return;
+    if(!tr.visible||tr.muted)return;
+    if(soloActive&&!tr.solo)return;
+    const tTop=wh+60+ti*row,tBot=tTop+lh;
+    if(st<tBot&&sb2>tTop)hitTid=tr.id;// last hit wins (bottom track)
+  });
+  const activeId=this.project.activeTrackId;
+  const targetId=hitTid||activeId;
+  const tr=this.trackById(targetId);if(!tr)return;
+  tr.items.forEach(it=>{
+    const ti=this.project.tracks.indexOf(tr);
     const tTop=wh+60+ti*row;
-    tr.items.forEach(it=>{
-      const ix=it.start*this.zoom,iw=Math.max(4,(it.end-it.start)*this.zoom);
-      if(ix<sr&&ix+iw>sl&&tTop<sb2&&tTop+lh>st){
-        this.selectItem(tr.id,it.id);
-      }
-    });
+    const ix=it.start*this.zoom,iw=Math.max(4,(it.end-it.start)*this.zoom);
+    if(ix<sr&&ix+iw>sl&&tTop<sb2&&tTop+lh>st){
+      if(this.selected.trackId&&this.selected.trackId!==targetId)return;
+      this.selected.trackId=targetId;this.selected.ids.add(it.id);
+    }
   });
   this.renderTimeline();this.renderInspector();
 },
@@ -1986,6 +2019,10 @@ redo(){
 markDirty(dirty=true){
   this.dirty=dirty;
   this.updateSaveStatus(dirty?'Unsaved changes':'Saved',dirty);
+  if(dirty&&this.autosaveEnabled){
+    clearTimeout(this._dirtyDebounce);
+    this._dirtyDebounce=setTimeout(()=>this.saveAutoDraft(),3000);
+  }
 },
 
 updateSaveStatus(msg,isDirty){
