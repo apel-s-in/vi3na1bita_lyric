@@ -62,6 +62,7 @@ vi3na1bita_lyric/
 │   │   ├── 01/
 │   │   │   └── 502b13e19cf0e0a38e7168405fc4a28e65338e
 │   │   ├── 03/
+│   │   │   ├── 6d46f595f900b07fb2528924d1ce1e72f32311
 │   │   │   └── a0f933246e076f9917869a7e967c7464ba9e0d
 │   │   ├── 07/
 │   │   │   └── 12e2761a4a6213eb5d4f9cc680e6ea066e260c
@@ -73,6 +74,8 @@ vi3na1bita_lyric/
 │   │   │   └── bb4111e53a3671a09ccde8c5fc337b3f5a94cc
 │   │   ├── 10/
 │   │   │   └── 0ae4bd3cfe468c7c484db5d0ba6c0371c90310
+│   │   ├── 12/
+│   │   │   └── 2b4ceac723952bf07d5d6c396f3b5f8d162b12
 │   │   ├── 14/
 │   │   │   └── 7751def38acab588dd4a6ae3ac5ca7c09ae95f
 │   │   ├── 18/
@@ -83,6 +86,8 @@ vi3na1bita_lyric/
 │   │   │   └── 7927a45c96a97a4c086b89f1dff2be9d233fe9
 │   │   ├── 25/
 │   │   │   └── 528f2fd9d38859d05977907e8797958b1b9949
+│   │   ├── 26/
+│   │   │   └── 434d4e9d3af79f3e6c3650fb110693a83a8ef6
 │   │   ├── 2a/
 │   │   │   └── 51e5bedc07ae284c59e3f2fcbe837a89702d9c
 │   │   ├── 33/
@@ -137,6 +142,8 @@ vi3na1bita_lyric/
 │   │   │   └── 2e308bbaaa69535c6601bd2a6979be922a88f7
 │   │   ├── 86/
 │   │   │   └── 44e5658d284e195e509804bfec27cb95a1053e
+│   │   ├── 8b/
+│   │   │   └── a5d3f8d3b902d871e683659b3e07e863e365d7
 │   │   ├── 8c/
 │   │   │   └── 1d05996de6c44660ad232f53ab0fd4171e1869
 │   │   ├── 92/
@@ -151,6 +158,8 @@ vi3na1bita_lyric/
 │   │   │   └── 0ceec21d687686e7598d13b99768d74a229d89
 │   │   ├── a4/
 │   │   │   └── bce7ebf9f57b918eb8cff46b74bf868cf0beca
+│   │   ├── a5/
+│   │   │   └── f41f6db592c87b99f1115a49a591991a7be3f6
 │   │   ├── aa/
 │   │   │   └── c42fef5e995511fdd9e9bcb3ae30817972e05d
 │   │   ├── b1/
@@ -163,6 +172,8 @@ vi3na1bita_lyric/
 │   │   │   └── 1af213af77b6df332125857a17c94119b0e93a
 │   │   ├── bd/
 │   │   │   └── 1588fd18277d790238d96f31ccbaeb4909bed1
+│   │   ├── c9/
+│   │   │   └── 4da599aba1c110273d4d656e1b2ac73037fd6e
 │   │   ├── ca/
 │   │   │   └── 84de1d477e7e9d49116b27056e86f59c23acc6
 │   │   ├── d0/
@@ -171,12 +182,16 @@ vi3na1bita_lyric/
 │   │   │   └── 97785da31dbb6fe3bacdd12d9042a96e1fe507
 │   │   ├── d5/
 │   │   │   └── caa9d2cc28ca9ac6cf8446a0000600e43a0f8d
+│   │   ├── ea/
+│   │   │   └── 2223ec4ffca331c83170396801b02c7ef8aa0d
 │   │   ├── eb/
 │   │   │   └── e569cbcceac6ad11a32c3d9cb9a9191d3137ed
 │   │   ├── f0/
 │   │   │   └── 0bf972b44d93e79d1fda8e716f76bc33ce9ab2
 │   │   ├── f2/
 │   │   │   └── 005e98c8bf0a1e4db01d8e51d93a8cfd8461a8
+│   │   ├── f5/
+│   │   │   └── 81522c735019a67c3034a9e83d66f8567c23d7
 │   │   ├── f6/
 │   │   │   └── 6939449aa94b03ddcf90077b6d99aa52a07aa6
 │   │   ├── f7/
@@ -209,7 +224,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 18:26:10 UTC
+Сгенерировано: 2026-03-09 18:28:01 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -1093,7 +1108,7 @@ const toUnix = p => String(p).replace(/\\/g, "/");
 const SELF_FULL_REL = toUnix(path.relative(ROOT, FULL_FILE)), SELF_ADAPT_REL = toUnix(path.relative(ROOT, ADAPTIVE_FILE));
 const TEXT_EXTS = new Set([".html",".htm",".css",".js",".mjs",".cjs",".ts",".tsx",".json",".webmanifest",".md",".txt",".yml",".yaml"]);
 const globToRegExp = pat => new RegExp("^" + pat.replace(/[.+^${}()|[\]\\]/g, "\\$").replace(/\*\*/g, "___GLOBSTAR___").replace(/\*/g, "[^/]*").replace(/___GLOBSTAR___/g, ".*") + "$");
-const EXCLUDE_FILES_PATTERNS = ["node_modules/**",".git/**",".meta/**","assets/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store","ai-rules.txt"].map(globToRegExp);
+const EXCLUDE_FILES_PATTERNS = ["node_modules/**",".meta/**","assets/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store","ai-rules.txt"].map(globToRegExp);
 const EXCLUDE_TREE_PATTERNS = ["node_modules/**",".meta/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store"].map(globToRegExp);
 const PRIORITY = { critical: [/^karaoke-editor\.html?$/i,/^karaoke-editor\.js$/i,/^karaoke-editor\.css$/i,/^generate-index\.(js|mjs|cjs)$/i,/^\.github\/workflows\/.*\.ya?ml$/i], high: [/^AudioController\.(js|mjs|cjs|ts)$/i,/^GlobalState\.(js|mjs|cjs|ts)$/i,/^scripts\/.*\.(mjs|js|ts)$/i,/^performance\/.*\.(js|ts)$/i,/^.*\.(ya?ml)$/i], medium: [/^.*\.(js|mjs|cjs|ts|tsx|json|html?|css)$/i] };
 const isTextFile = rel => TEXT_EXTS.has(path.extname(rel).toLowerCase());
