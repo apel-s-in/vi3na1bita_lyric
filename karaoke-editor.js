@@ -109,6 +109,19 @@ cache(){
   };
 },
 
+/* ─── unified edit pipeline ──────────────────────────────────────── */
+applyTrackEdit(tr,label,fn){
+  if(!tr)return;
+  this.pushHistory(label);
+  fn();
+  this.normalizeTrackAfterEdit(tr);
+  this.markDirty();
+  this.afterEdit();
+},
+
+/* helper: re-render after any editing op */
+afterEdit(){this.renderTimeline();this.renderInspector();this.renderPreview()},
+
 /* ─── command layer ──────────────────────────────────────────────── */
 initCommands(){
   const A=this;
@@ -127,6 +140,8 @@ initCommands(){
     nudgeRight(){A.nudgeSelected(.05)},
     stretchLeft(){A.stretchSelected('left',-.05)},
     stretchRight(){A.stretchSelected('right',.05)},
+    stretchGroupLeft(){A.stretchSelectionEdge('left',-.05)},
+    stretchGroupRight(){A.stretchSelectionEdge('right',.05)},
     split(){A.splitAtPlayhead()},
     mergeNext(){A.mergeSelectedWithNext()},
     mergePrev(){A.mergeSelectedWithPrev()},
@@ -155,11 +170,10 @@ initCommands(){
     addWord(){A.addNewWord()},
     validate(){A.openValidationModal()},
     help(){A.openHelpModal()},
-    // context-only commands
     editText(){
       const it=A.itemById(A.context.trackId,A.context.itemId);if(!it)return;
       const t=prompt('Текст:',it.text);
-      if(t!==null){A.pushHistory('Edit Text');it.text=t;A.markDirty();A.afterEdit()}
+      if(t!==null){const tr=A.trackById(A.context.trackId);A.applyTrackEdit(tr,'Edit Text',()=>{it.text=t})}
     },
     splitAtCursor(){A.splitAtCursor(A.context.cursorX)},
     batchCloseGaps(){A.batchCloseGapsCtx()},
@@ -171,17 +185,17 @@ initCommands(){
     },
     batchNormalize(){
       const dur=A.num(prompt('Длительность (s):','1.0'),0);if(dur<=0)return;
-      const tr=A.activeTrack();if(!tr)return;A.pushHistory('Batch Norm');
-      [...A.selected.ids].forEach(id=>{const it=A.itemById(tr.id,id);if(it)it.end=it.start+dur});
-      A.markDirty();A.afterEdit();
+      const tr=A.activeTrack();if(!tr)return;
+      A.applyTrackEdit(tr,'Batch Norm',()=>{
+        [...A.selected.ids].forEach(id=>{const it=A.itemById(tr.id,id);if(it)it.end=it.start+dur});
+      });
     },
     moveToPlayhead(){
       const tr=A.activeTrack();if(!tr||!A.selected.ids.size)return;
       const items=[...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean);
       if(!items.length)return;
       const t=A.audioElement.currentTime,minS=Math.min(...items.map(i=>i.start)),delta=t-minS;
-      A.pushHistory('Move to Playhead');items.forEach(i=>{i.start+=delta;i.end+=delta});
-      A.markDirty();A.afterEdit();
+      A.applyTrackEdit(tr,'Move to Playhead',()=>{items.forEach(i=>{i.start+=delta;i.end+=delta})});
     },
     selTrack(){
       const tid=A.context.trackId,tr=A.trackById(tid);if(!tr)return;
@@ -198,28 +212,18 @@ runCommand(name){
   else console.warn('Unknown command:',name);
 },
 
-/* helper: re-render after any editing op */
-afterEdit(){this.renderTimeline();this.renderInspector();this.renderPreview()},
-
 bind(){
-  // File
   this.ui.audioUpload.onchange=e=>this.loadAudio(e.target.files[0]);
   this.ui.lineUpload.onchange=e=>this.loadTrackJSON(e.target.files[0],'line');
   this.ui.wordsUpload.onchange=e=>this.loadTrackJSON(e.target.files[0],'words');
-
-  // Export — via commands
   this.ui.btnExportActive.onclick=()=>this.runCommand('exportActive');
   this.ui.btnExportLine.onclick=()=>this.exportTrack(this.trackByType('line'));
   this.ui.btnExportWords.onclick=()=>this.exportTrack(this.trackByType('words'));
   this.ui.btnExportAll.onclick=()=>this.exportAll();
   this.ui.btnExportZip.onclick=()=>this.exportZip();
-
-  // Session
   this.ui.btnSaveSession.onclick=()=>this.saveSessionToFile();
   this.ui.btnLoadSession.onclick=()=>this.ui.sessionUpload.click();
   this.ui.sessionUpload.onchange=e=>this.loadSessionFromFile(e.target.files[0]);
-
-  // Modals & commands via toolbar
   this.ui.btnValidate.onclick=()=>this.runCommand('validate');
   this.ui.btnRestoreSession.onclick=()=>this.openRecentModal();
   this.ui.btnRecent.onclick=()=>this.openRecentModal();
@@ -227,35 +231,25 @@ bind(){
   this.ui.btnHelp.onclick=()=>this.runCommand('help');
   this.ui.btnVkbd.onclick=()=>this.openVkbdModal();
   this.ui.btnVkbdClose.onclick=()=>this.ui.vkbdModal.classList.add('hidden');
-
-  // Hotkeys modal
   this.ui.btnHotkeysClose.onclick=()=>this.closeHotkeysModal();
   this.ui.btnHotkeysSave.onclick=()=>this.saveKeymap();
   this.ui.btnHotkeysReset.onclick=()=>{this.keymap=this.defaultKeymap();this.renderHotkeysModal()};
   this.ui.hkSearch.oninput=()=>this.renderHotkeysModal();
-
-  // Validation modal
   this.ui.btnValidationClose.onclick=()=>this.ui.validationModal.classList.add('hidden');
   this.ui.btnValidationExport.onclick=()=>{this.ui.validationModal.classList.add('hidden');this.runCommand('exportActive')};
   this.ui.btnValidationFix.onclick=()=>this.autoFixOverlaps();
   this.ui.btnValidationRerun.onclick=()=>this.runCommand('validate');
-
-  // Help / Rename / Recent / Loop modal close
   this.ui.btnHelpClose.onclick=()=>this.ui.helpModal.classList.add('hidden');
   this.ui.btnRenameCancel.onclick=()=>this.ui.renameModal.classList.add('hidden');
   this.ui.btnRecentClose.onclick=()=>this.ui.recentModal.classList.add('hidden');
   this.ui.btnRecentClearAll.onclick=()=>{this.clearAllDrafts();this.ui.recentModal.classList.add('hidden')};
   this.ui.btnLoopCancel.onclick=()=>this.ui.loopModal.classList.add('hidden');
   this.ui.btnLoopOk.onclick=()=>this.applyLoopFromModal();
-
-  // Transport — via commands
   this.ui.btnPlay.onclick=()=>this.runCommand('playPause');
   this.ui.btnStop.onclick=()=>this.runCommand('stop');
   this.ui.btnCenterPlayhead.onclick=()=>this.runCommand('centerPlayhead');
   this.ui.btnLoop.onclick=()=>this.openLoopModal();
   this.ui.btnLoopClear.onclick=()=>this.clearLoop();
-
-  // Edit — via commands
   this.ui.btnUndo.onclick=()=>this.runCommand('undo');
   this.ui.btnRedo.onclick=()=>this.runCommand('redo');
   this.ui.btnSelectAll.onclick=()=>this.runCommand('selectAll');
@@ -267,14 +261,10 @@ bind(){
   this.ui.btnAddLine.onclick=()=>this.runCommand('addLine');
   this.ui.btnAddWord.onclick=()=>this.runCommand('addWord');
   this.ui.btnDelete.onclick=()=>this.runCommand('deleteSelected');
-
-  // Navigation — via commands
   this.ui.btnFitSong.onclick=()=>this.runCommand('fitSong');
   this.ui.btnZoomSelection.onclick=()=>this.runCommand('zoomSelection');
   this.ui.btnScrollSelection.onclick=()=>this.runCommand('scrollSelection');
   this.ui.btnGotoSelection.onclick=()=>this.runCommand('gotoSelStart');
-
-  // Sliders
   this.ui.zoomSlider.oninput=e=>this.setZoom(+e.target.value,true);
   this.ui.vzoomSlider.oninput=e=>this.setVerticalZoom(+e.target.value/100);
   this.ui.snapSelect.onchange=e=>{this.snapStep=+e.target.value};
@@ -284,10 +274,8 @@ bind(){
   this.ui.volumeSlider.oninput=e=>this.setVolume(+e.target.value/100);
   this.ui.btnMute.onclick=()=>this.toggleMute();
 
-  // Audio / Playhead
   this.audioElement.addEventListener('timeupdate',()=>{
     this.syncPlayhead();this.handleLoopTick();
-    // throttled preview on timeupdate (when not using RAF playback)
     if(this.audioElement.paused){
       clearTimeout(this._previewDebounce);
       this._previewDebounce=setTimeout(()=>this.renderPreview(),80);
@@ -298,12 +286,8 @@ bind(){
   this.ui.playheadHandle.addEventListener('mousedown',e=>this.startPlayheadDrag(e));
   document.addEventListener('mousemove',e=>this.handleGlobalMouseMove(e));
   document.addEventListener('mouseup',()=>this.handleGlobalMouseUp());
-
-  // Resizers
   this.ui.sidebarResizer.addEventListener('mousedown',e=>this.startResize(e,'sidebar'));
   this.ui.previewResizer.addEventListener('mousedown',e=>this.startResize(e,'preview'));
-
-  // Context menu
   this.ui.scrollArea.addEventListener('contextmenu',e=>this.showContextMenu(e));
   document.addEventListener('click',e=>{
     if(!e.target.closest('#context-menu'))this.ui.contextMenu.classList.add('hidden');
@@ -312,14 +296,9 @@ bind(){
     });
   });
   this.setupContext();
-
-  // Basic touch support
   this._setupTouch();
-
-  // Keyboard
   document.addEventListener('keydown',e=>this.handleHotkeys(e));
 
-  // Restore modal
   this.ui.btnRestoreYes.onclick=()=>{this.restoreDraftFromStorage(this._pendingDraftKey||this.DRAFT_KEY,true);this.ui.restoreModal.classList.add('hidden')};
   this.ui.btnRestoreNo.onclick=()=>this.ui.restoreModal.classList.add('hidden');
   this.ui.btnRestoreDelete.onclick=()=>{
@@ -328,7 +307,6 @@ bind(){
     this.ui.restoreModal.classList.add('hidden');
   };
 
-  // Drag & drop files onto timeline
   const dropZone=this.ui.timelineContainer;
   ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.style.outline='2px dashed var(--acc)'}));
   ['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.style.outline=''}));
@@ -336,38 +314,24 @@ bind(){
     const files=e.dataTransfer?.files;if(!files||!files.length)return;
     for(const f of files){
       if(f.type.startsWith('audio/')){this.loadAudio(f);break}
-      if(f.name.endsWith('.json')){
-        const isWords=f.name.toLowerCase().includes('word');
-        this.loadTrackJSON(f,isWords?'words':'line');break;
-      }
+      if(f.name.endsWith('.json')){this.loadTrackJSON(f,f.name.toLowerCase().includes('word')?'words':'line');break}
       if(f.name.endsWith('.kep')){this.loadSessionFromFile(f);break}
     }
   });
 
-  // Dirty warning
   window.addEventListener('beforeunload',e=>{if(this.dirty){e.preventDefault();e.returnValue=''}});
 
-  // Wheel zoom: Ctrl+wheel = zoom, Shift+wheel = vertical zoom
   this.ui.timelineContainer.addEventListener('wheel',e=>{
-    if(e.ctrlKey){
-      e.preventDefault();
-      const delta=e.deltaY<0?10:-10;
-      this.setZoom(this.zoom+delta,true);
-    }else if(e.shiftKey){
-      e.preventDefault();
-      const delta=e.deltaY<0?.1:-.1;
-      this.setVerticalZoom(this.verticalZoom+delta);
-    }
+    if(e.ctrlKey){e.preventDefault();this.setZoom(this.zoom+(e.deltaY<0?10:-10),true)}
+    else if(e.shiftKey){e.preventDefault();this.setVerticalZoom(this.verticalZoom+(e.deltaY<0?.1:-.1))}
   },{passive:false});
 
-  // Scroll-based viewport culling re-render
   this._scrollRenderTimer=null;
   this.ui.timelineContainer.addEventListener('scroll',()=>{
     clearTimeout(this._scrollRenderTimer);
     this._scrollRenderTimer=setTimeout(()=>this.renderTimeline(),60);
   });
 
-  // Resize observer
   if(window.ResizeObserver){
     new ResizeObserver(()=>this.renderRuler()).observe(this.ui.timelineContainer);
   }else{
@@ -447,8 +411,7 @@ enforceNoOverlapForKind(tr,kind){
 
 recomputeWordsLineBounds(tr){
   if(tr.type!=='words')return;
-  const lines=tr.items.filter(i=>i.kind==='line');
-  lines.forEach(line=>{
+  tr.items.filter(i=>i.kind==='line').forEach(line=>{
     const words=tr.items.filter(i=>i.kind==='word'&&i.lineId===line.id);
     if(!words.length)return;
     const minS=Math.min(...words.map(w=>w.start)),maxE=Math.max(...words.map(w=>w.end));
@@ -471,6 +434,51 @@ normalizeTrackForExport(tr){
   this.sortTrack(clone);
   if(clone.type==='words')this.recomputeWordsLineBounds(clone);
   return clone;
+},
+
+/* ─── selection helpers ──────────────────────────────────────────── */
+getSelectionBounds(){
+  const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return null;
+  const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
+  if(!items.length)return null;
+  return{items,minStart:Math.min(...items.map(i=>i.start)),maxEnd:Math.max(...items.map(i=>i.end)),tr};
+},
+
+stretchSelectionEdge(side,delta){
+  const b=this.getSelectionBounds();if(!b)return;
+  const {items,minStart,maxEnd,tr}=b;
+  const span=maxEnd-minStart;if(span<.04)return;
+  this.applyTrackEdit(tr,'Group Stretch',()=>{
+    if(side==='left'){
+      const newMin=Math.max(0,minStart+delta);
+      const ratio=(maxEnd-newMin)/span;
+      items.forEach(it=>{
+        it.start=newMin+(it.start-minStart)*ratio;
+        it.end=newMin+(it.end-minStart)*ratio;
+      });
+    }else{
+      const newMax=Math.max(minStart+.04,maxEnd+delta);
+      const ratio=(newMax-minStart)/span;
+      items.forEach(it=>{
+        it.start=minStart+(it.start-minStart)*ratio;
+        it.end=minStart+(it.end-minStart)*ratio;
+      });
+    }
+  });
+},
+
+/* ─── smart text split helper ────────────────────────────────────── */
+smartTextSplit(text,ratio){
+  const words=text.split(/\s+/);
+  if(words.length<=1)return{before:text,after:text};
+  let splitIdx=Math.max(1,Math.round(words.length*ratio));
+  if(splitIdx>=words.length)splitIdx=words.length-1;
+  return{before:words.slice(0,splitIdx).join(' '),after:words.slice(splitIdx).join(' ')};
+},
+
+/* clean merge text — no double spaces */
+mergeTexts(a,b){
+  return(a.trim()+' '+b.trim()).replace(/\s{2,}/g,' ').trim();
 },
 
 /* ─── render core ────────────────────────────────────────────────── */
@@ -503,11 +511,8 @@ drawWaveform(){
         h=Math.round(80*this.verticalZoom);
   c.width=w;c.height=h;x.clearRect(0,0,w,h);
   if(!this.audioBuffer){x.fillStyle='#3a3d46';x.fillRect(0,h/2-1,w,2);return}
-  // cache: reuse if zoom+height unchanged
   const cacheKey=w+'_'+h;
-  if(this._waveCache&&this._waveCacheKey===cacheKey){
-    x.drawImage(this._waveCache,0,0);return;
-  }
+  if(this._waveCache&&this._waveCacheKey===cacheKey){x.drawImage(this._waveCache,0,0);return}
   const d=this.audioBuffer.getChannelData(0),step=Math.max(1,Math.ceil(d.length/w)),amp=h/2;
   x.fillStyle='#5a7fa8';
   for(let i=0;i<w;i++){
@@ -515,12 +520,11 @@ drawWaveform(){
     for(let j=s;j<e2;j++){const v=d[j];if(v<mn)mn=v;if(v>mx)mx=v}
     x.fillRect(i,(1+mn)*amp,1,Math.max(1,(mx-mn)*amp));
   }
-  // store to offscreen cache
   try{
     const oc=document.createElement('canvas');oc.width=w;oc.height=h;
     oc.getContext('2d').drawImage(c,0,0);
     this._waveCache=oc;this._waveCacheKey=cacheKey;
-  }catch(e){/* canvas too large — skip cache */}
+  }catch(e){/* canvas too large */}
 },
 
 renderRuler(){
@@ -627,10 +631,9 @@ renderTimeline(){
   const w=Math.ceil(this.duration*this.zoom);
   const row=Math.round(56*this.verticalZoom),lh=Math.round(34*this.verticalZoom);
   const layerM=this.ui.layerMode.value;
-  // viewport culling: only render items visible in scroll window
   const sc=this.ui.timelineContainer;
   const vpLeft=sc.scrollLeft/this.zoom,vpRight=(sc.scrollLeft+sc.clientWidth)/this.zoom;
-  const vpMargin=2; // seconds margin to avoid pop-in
+  const vpMargin=2;
 
   this.getVisibleTracks().forEach(tr=>{
     const ti=this.project.tracks.indexOf(tr);
@@ -641,7 +644,6 @@ renderTimeline(){
     c.appendChild(trkBg);
     const isActive=tr.id===this.project.activeTrackId&&!tr.locked;
     this.visibleItems(tr,layerM).forEach(it=>{
-      // viewport culling check
       if(it.end<vpLeft-vpMargin||it.start>vpRight+vpMargin)return;
       c.appendChild(this.createTrackItemElement(tr,it,trackTop,lh,color,isActive));
     });
@@ -748,12 +750,14 @@ updatePlayingHighlights(t){
 
 fmtTime(t){const m=Math.floor(t/60),s=(t%60).toFixed(2);return m+':'+(+s<10?'0':'')+s},
 
-centerOnPlayhead(){
-  const px=this.audioElement.currentTime*this.zoom,sw=this.ui.timelineContainer.clientWidth;
+centerOnPlayhead(){this.centerScrollOnTime(this.audioElement.currentTime)},
+
+centerScrollOnTime(time){
+  const px=time*this.zoom,sw=this.ui.timelineContainer.clientWidth;
   this.ui.timelineContainer.scrollLeft=Math.max(0,px-sw/2);
 },
 
-/* ─── drag helpers ───────────────────────────────────────────────── */
+/* ─── drag helpers (improved trim engine) ────────────────────────── */
 getPrevNeighbor(tr,it){
   const same=tr.items.filter(i=>i.kind===it.kind).sort((a,b)=>a.start-b.start);
   const idx=same.findIndex(i=>i.id===it.id);
@@ -772,19 +776,29 @@ applyFreeMove(sel,rawDelta){
 
 applyNoOverlapMove(tr,sel,rawDelta){
   const selIds=new Set(sel.map(s=>s.item.id));
-  const others=tr.items.filter(i=>!selIds.has(i.id));
   let d=rawDelta;
-  // Вычисляем максимально допустимый сдвиг без перекрытий
-  sel.forEach(s=>{
-    others.forEach(o=>{
-      if(o.kind!==s.item.kind)return;
-      if(d>0&&o.start>=s.origEnd-1e-9){
-        const maxD=o.start-s.origEnd;
-        d=Math.min(d,Math.max(0,maxD));
-      }
-      if(d<0&&o.end<=s.origStart+1e-9){
-        const minD=o.end-s.origStart;
-        d=Math.max(d,Math.min(0,minD));
+  // Per-kind: find the tightest constraint
+  const byKind={};
+  sel.forEach(s=>{const k=s.item.kind;if(!byKind[k])byKind[k]=[];byKind[k].push(s)});
+  Object.entries(byKind).forEach(([kind,selOfKind])=>{
+    const others=tr.items.filter(i=>!selIds.has(i.id)&&i.kind===kind).sort((a,b)=>a.start-b.start);
+    selOfKind.forEach(s=>{
+      if(d>0){
+        // find first non-selected item that starts at/after orig end
+        for(const o of others){
+          if(o.start>=s.origEnd-1e-9){
+            d=Math.min(d,Math.max(0,o.start-(s.origEnd)));
+            break;
+          }
+        }
+      }else if(d<0){
+        // find last non-selected item that ends at/before orig start
+        for(let j=others.length-1;j>=0;j--){
+          if(others[j].end<=s.origStart+1e-9){
+            d=Math.max(d,Math.min(0,others[j].end-s.origStart));
+            break;
+          }
+        }
       }
     });
   });
@@ -792,28 +806,76 @@ applyNoOverlapMove(tr,sel,rawDelta){
 },
 
 applyRippleMove(tr,sel,rawDelta){
-  // Move selected, push others ahead
   const selIds=new Set(sel.map(s=>s.item.id));
+  // Move selected items
   sel.forEach(s=>{s.item.start=Math.max(0,s.origStart+rawDelta);s.item.end=Math.max(s.item.start+.02,s.origEnd+rawDelta)});
-  if(rawDelta>0){
-    sel.forEach(s=>{
-      tr.items.filter(i=>!selIds.has(i.id)&&i.kind===s.item.kind&&i.start<s.item.end&&i.start>=s.origEnd-1e-9).forEach(o=>{
-        const push=s.item.end-o.start;o.start+=push;o.end+=push;
+  // Push/pull neighbours per kind
+  const byKind={};
+  sel.forEach(s=>{const k=s.item.kind;if(!byKind[k])byKind[k]=[];byKind[k].push(s)});
+  Object.entries(byKind).forEach(([kind,selOfKind])=>{
+    const others=tr.items.filter(i=>!selIds.has(i.id)&&i.kind===kind).sort((a,b)=>a.start-b.start);
+    if(rawDelta>0){
+      // push right: any non-selected overlapping after move
+      selOfKind.forEach(s=>{
+        others.forEach(o=>{
+          if(o.start<s.item.end&&o.start>=s.origEnd-1e-9){
+            const push=s.item.end-o.start;
+            o.start+=push;o.end+=push;
+          }
+        });
       });
-    });
-  }
+    }else if(rawDelta<0){
+      // push left: any non-selected overlapping before move
+      selOfKind.forEach(s=>{
+        for(let j=others.length-1;j>=0;j--){
+          const o=others[j];
+          if(o.end>s.item.start&&o.end<=s.origStart+1e-9){
+            const push=s.item.start-o.end;
+            o.start=Math.max(0,o.start+push);o.end=Math.max(o.start+.02,o.end+push);
+          }
+        }
+      });
+    }
+  });
 },
 
 applyHandleTrim(tr,it,side,raw,mode){
   if(side==='left'){
     raw=Math.max(0,Math.min(raw,it.end-.02));
-    if(mode!=='free'){const pr=this.getPrevNeighbor(tr,it);if(pr&&pr.kind===it.kind)raw=Math.max(raw,pr.end)}
+    if(mode==='keep'||mode==='ripple'){
+      const pr=this.getPrevNeighbor(tr,it);
+      if(pr&&pr.kind===it.kind)raw=Math.max(raw,pr.end);
+    }
+    const oldStart=it.start;
     it.start=raw;
+    if(mode==='ripple'){
+      const delta=raw-oldStart;
+      if(Math.abs(delta)>1e-6){
+        const pr=this.getPrevNeighbor(tr,it);
+        if(pr&&pr.kind===it.kind&&delta<0){
+          // extending left: push prev items
+          tr.items.filter(i=>i.kind===it.kind&&i.end<=oldStart+1e-9&&i.id!==it.id)
+            .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
+        }
+      }
+    }
   }else{
     raw=Math.max(it.start+.02,raw);
-    if(mode!=='free'){const nx=this.getNextNeighbor(tr,it);if(nx&&nx.kind===it.kind)raw=Math.min(raw,nx.start)}
+    if(mode==='keep'||mode==='ripple'){
+      const nx=this.getNextNeighbor(tr,it);
+      if(nx&&nx.kind===it.kind){
+        if(mode==='keep')raw=Math.min(raw,nx.start);
+      }
+    }
+    const oldEnd=it.end;
     it.end=raw;
-    if(mode==='ripple')this.rippleRight(tr,it,raw);
+    if(mode==='ripple'){
+      const delta=raw-oldEnd;
+      if(Math.abs(delta)>1e-6){
+        tr.items.filter(i=>i.kind===it.kind&&i.start>=oldEnd-1e-9&&i.id!==it.id)
+          .forEach(o=>{o.start=Math.max(0,o.start+delta);o.end=Math.max(o.start+.02,o.end+delta)});
+      }
+    }
   }
 },
 
@@ -860,7 +922,6 @@ handleTimelineMouseDown(e){
     return;
   }
 
-  // Ruler: Shift+drag = set loop, plain click = seek
   if(e.target===this.ui.rulerCanvas){
     const rect=this.ui.scrollArea.getBoundingClientRect();
     const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
@@ -872,7 +933,6 @@ handleTimelineMouseDown(e){
     this.audioElement.currentTime=t;this.syncPlayhead();return;
   }
 
-  // Marquee
   if(!item&&!handle&&(e.target===this.ui.scrollArea||e.target===this.ui.tracksContainer||e.target.closest('.tracks')===this.ui.tracksContainer)){
     this.marquee={active:true,startX:e.clientX,startY:e.clientY};
     this.ui.selectionBox.classList.remove('hidden');
@@ -911,16 +971,10 @@ handleMainDragMove(e){
 
   if(this.drag.type==='move'){
     let rawDelta=this.snapStep?Math.round(dx/this.snapStep)*this.snapStep:dx;
-    // clamp so nothing goes below 0
     this.drag.sel.forEach(s=>{rawDelta=Math.max(rawDelta,-s.origStart)});
-
-    if(mode==='free'){
-      this.applyFreeMove(this.drag.sel,rawDelta);
-    }else if(mode==='ripple'){
-      this.applyRippleMove(tr,this.drag.sel,rawDelta);
-    }else{
-      this.applyNoOverlapMove(tr,this.drag.sel,rawDelta);
-    }
+    if(mode==='free'){this.applyFreeMove(this.drag.sel,rawDelta)}
+    else if(mode==='ripple'){this.applyRippleMove(tr,this.drag.sel,rawDelta)}
+    else{this.applyNoOverlapMove(tr,this.drag.sel,rawDelta)}
   }
 
   if(this.drag.type==='handle'){
@@ -1274,7 +1328,7 @@ distributeItemsEvenly(items){
   this.markDirty();this.afterEdit();
 },
 
-/* ─── editing ops (smart split/merge) ────────────────────────────── */
+/* ─── editing ops ────────────────────────────────────────────────── */
 splitAtPlayhead(){
   const tr=this.activeTrack();if(!tr)return;
   const t=this.audioElement.currentTime;
@@ -1284,17 +1338,9 @@ splitAtPlayhead(){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);
     if(!it||t<=it.start||t>=it.end)return;
-    // Smart split: divide text at word boundary nearest to time ratio
-    const ratio=(t-it.start)/(it.end-it.start);
-    const words=it.text.split(/\s+/);
-    let splitIdx=Math.max(1,Math.round(words.length*ratio));
-    if(splitIdx>=words.length)splitIdx=words.length-1;
-    const textBefore=words.slice(0,splitIdx).join(' ');
-    const textAfter=words.slice(splitIdx).join(' ');
-    const newIt={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:t,
-      text:textAfter||it.text,chars:[]};
-    it.end=t;
-    it.text=textBefore||it.text;
+    const sp=this.smartTextSplit(it.text,(t-it.start)/(it.end-it.start));
+    const newIt={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:t,text:sp.after,chars:[]};
+    it.end=t;it.text=sp.before;
     it.chars=(it.chars||[]).filter(c=>this.num(c.start,it.start)<t);
     tr.items.push(newIt);
   });
@@ -1309,13 +1355,9 @@ splitAtCursor(cursorT){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);
     if(!it||cursorT<=it.start||cursorT>=it.end)return;
-    const ratio=(cursorT-it.start)/(it.end-it.start);
-    const words=it.text.split(/\s+/);
-    let si=Math.max(1,Math.round(words.length*ratio));
-    if(si>=words.length)si=words.length-1;
-    const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:cursorT,
-      text:words.slice(si).join(' ')||it.text,chars:[]};
-    it.end=cursorT;it.text=words.slice(0,si).join(' ')||it.text;
+    const sp=this.smartTextSplit(it.text,(cursorT-it.start)/(it.end-it.start));
+    const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:cursorT,text:sp.after,chars:[]};
+    it.end=cursorT;it.text=sp.before;
     tr.items.push(nit);
   });
   this.normalizeTrackAfterEdit(tr);
@@ -1329,7 +1371,7 @@ mergeSelectedWithNext(){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
     const nx=this.getNextNeighbor(tr,it);if(!nx)return;
-    it.end=nx.end;it.text=(it.text+' '+nx.text).trim();
+    it.end=nx.end;it.text=this.mergeTexts(it.text,nx.text);
     it.chars=[...(it.chars||[]),...(nx.chars||[])];
     tr.items=tr.items.filter(i=>i.id!==nx.id);
   });
@@ -1344,7 +1386,7 @@ mergeSelectedWithPrev(){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
     const pr=this.getPrevNeighbor(tr,it);if(!pr)return;
-    pr.end=it.end;pr.text=(pr.text+' '+it.text).trim();
+    pr.end=it.end;pr.text=this.mergeTexts(pr.text,it.text);
     pr.chars=[...(pr.chars||[]),...(it.chars||[])];
     tr.items=tr.items.filter(i=>i.id!==it.id);
     this.selected.ids.delete(id);this.selected.ids.add(pr.id);
@@ -1408,28 +1450,20 @@ fitSong(){
 },
 
 zoomToSelection(){
-  const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
-  const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
-  if(!items.length)return;
-  const minS=Math.min(...items.map(i=>i.start)),maxE=Math.max(...items.map(i=>i.end));
+  const b=this.getSelectionBounds();if(!b)return;
   const w=this.ui.timelineContainer.clientWidth;
-  this.setZoom(Math.max(10,Math.floor(w/(maxE-minS)*.85)),false);
-  setTimeout(()=>this.ui.timelineContainer.scrollLeft=minS*this.zoom-20,50);
+  this.setZoom(Math.max(10,Math.floor(w/(b.maxEnd-b.minStart)*.85)),false);
+  setTimeout(()=>this.ui.timelineContainer.scrollLeft=b.minStart*this.zoom-20,50);
 },
 
 scrollToSelection(){
-  const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
-  const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
-  if(!items.length)return;
-  const minS=Math.min(...items.map(i=>i.start));
-  this.ui.timelineContainer.scrollLeft=Math.max(0,minS*this.zoom-this.ui.timelineContainer.clientWidth/2);
+  const b=this.getSelectionBounds();if(!b)return;
+  this.ui.timelineContainer.scrollLeft=Math.max(0,b.minStart*this.zoom-this.ui.timelineContainer.clientWidth/2);
 },
 
 gotoSelectionStart(){
-  const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
-  const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean);
-  if(!items.length)return;
-  this.audioElement.currentTime=Math.min(...items.map(i=>i.start));this.syncPlayhead();
+  const b=this.getSelectionBounds();if(!b)return;
+  this.audioElement.currentTime=b.minStart;this.syncPlayhead();
 },
 
 /* ─── loop ───────────────────────────────────────────────────────── */
@@ -1515,7 +1549,6 @@ togglePlay(){
 
 _tickRAF(){
   this.syncPlayhead();
-  // debounced preview: update at most every 100ms during playback
   const now=performance.now();
   if(!this._lastPreviewTick||now-this._lastPreviewTick>100){
     this.renderPreview();this._lastPreviewTick=now;
@@ -1566,7 +1599,7 @@ updateVolumeReadout(){
   this.ui.volumeSlider.value=Math.round(this.volume*100);
 },
 
-/* ─── preview (improved word matching) ───────────────────────────── */
+/* ─── preview ────────────────────────────────────────────────────── */
 renderPreview(){
   const t=this.audioElement.currentTime||0;
   const hasSolo=this.project.tracks.some(x=>x.solo);
@@ -1575,22 +1608,19 @@ renderPreview(){
   const source=lineTr||wordsTr;
   if(!source){this.ui.lyricsContainer.innerHTML='<p class="muted">Нет данных</p>';return}
 
+  const wordsForLine=(wTr,line)=>wTr.items.filter(i=>i.kind==='word'&&(
+    i.lineId===line.id||(!i.lineId&&i.start>=line.start-.01&&i.end<=line.end+.1)
+  )).sort((a,b)=>a.start-b.start);
+
   let html='';
   if(source===wordsTr&&!lineTr){
-    const lines=wordsTr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start);
-    lines.forEach(line=>{
-      // match words by lineId first, fallback by time overlap
-      const words=wordsTr.items.filter(i=>i.kind==='word'&&(i.lineId===line.id||(
-        !i.lineId&&i.start>=line.start-.01&&i.end<=line.end+.1
-      ))).sort((a,b)=>a.start-b.start);
+    wordsTr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).forEach(line=>{
+      const words=wordsForLine(wordsTr,line);
       const playing=t>=line.start&&t<line.end;
       const selUI=this.selected.trackId===wordsTr.id&&this.selected.ids.has(line.id);
       html+=`<div class="lyric-line${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${wordsTr.id}">`;
       if(words.length){
-        words.forEach(w=>{
-          const wp=t>=w.start&&t<w.end;
-          html+=`<span class="lyric-word${wp?' playing':''}">${this.esc(w.text)} </span>`;
-        });
+        words.forEach(w=>{html+=`<span class="lyric-word${t>=w.start&&t<w.end?' playing':''}">${this.esc(w.text)} </span>`});
       }else{html+=this.esc(line.text)}
       html+='</div>';
     });
@@ -1600,16 +1630,10 @@ renderPreview(){
       const selUI=this.selected.trackId===lineTr.id&&this.selected.ids.has(line.id);
       html+=`<div class="lyric-line preview-subline${playing?' playing':''}${selUI?' selected-ui':''}" data-id="${line.id}" data-tid="${lineTr.id}">`;
       html+=`<span class="preview-underlay">${this.esc(line.text)}</span>`;
-      const words=wordsTr.items.filter(i=>i.kind==='word'&&(
-        (i.lineId&&wordsTr.items.find(l=>l.id===i.lineId&&l.start>=line.start-.01&&l.end<=line.end+.1))||
-        (!i.lineId&&i.start>=line.start-.01&&i.end<=line.end+.1)
-      )).sort((a,b)=>a.start-b.start);
+      const words=wordsForLine(wordsTr,line);
       if(words.length){
         html+=' <span style="opacity:.7">|</span> ';
-        words.forEach(w=>{
-          const wp=t>=w.start&&t<w.end;
-          html+=`<span class="lyric-word preview-overlay${wp?' playing':''}">${this.esc(w.text)} </span>`;
-        });
+        words.forEach(w=>{html+=`<span class="lyric-word preview-overlay${t>=w.start&&t<w.end?' playing':''}">${this.esc(w.text)} </span>`});
       }
       html+='</div>';
     });
@@ -1632,14 +1656,13 @@ renderPreview(){
   if(playingEl)playingEl.scrollIntoView({block:'nearest',behavior:'smooth'});
 },
 
-/* ─── export (with normalization) ────────────────────────────────── */
+/* ─── export ─────────────────────────────────────────────────────── */
 exportTrack(tr){
   if(!tr){alert('Нет дорожки для экспорта');return}
   try{
     const normalized=this.normalizeTrackForExport(tr);
     const json=this.serializeTrack(normalized);
-    const blob=new Blob([JSON.stringify(json,null,2)],{type:'application/json'});
-    this.downloadBlob(blob,tr.name+'_export.json');
+    this.downloadBlob(new Blob([JSON.stringify(json,null,2)],{type:'application/json'}),tr.name+'_export.json');
   }catch(e){alert('Ошибка экспорта: '+e.message)}
 },
 
@@ -1648,8 +1671,7 @@ serializeTrack(tr){
     return tr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start)
       .map(i=>({time:+i.start.toFixed(3),line:i.text}));
   }
-  const lines=tr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start);
-  return lines.map(line=>{
+  return tr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).map(line=>{
     const words=tr.items.filter(i=>i.kind==='word'&&i.lineId===line.id).sort((a,b)=>a.start-b.start);
     return{
       start:+line.start.toFixed(3),end:+line.end.toFixed(3),line:line.text,
@@ -1686,11 +1708,7 @@ buildZipBlob(files){
   const u32le=(n,b,o)=>{b[o]=n&255;b[o+1]=(n>>8)&255;b[o+2]=(n>>16)&255;b[o+3]=(n>>24)&255};
   const u16le=(n,b,o)=>{b[o]=n&255;b[o+1]=(n>>8)&255};
   const tbl=this._getCrc32Table();
-  const crc32=(data)=>{
-    let c=0xFFFFFFFF;
-    for(let i=0;i<data.length;i++)c=tbl[(c^data[i])&255]^(c>>>8);
-    return(c^0xFFFFFFFF)>>>0;
-  };
+  const crc32=(data)=>{let c=0xFFFFFFFF;for(let i=0;i<data.length;i++)c=tbl[(c^data[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
   const parts=[],cdirs=[];let offset=0;const enc=new TextEncoder();
   files.forEach(f=>{
     const nameB=enc.encode(f.name),data=f.data,crc=crc32(data),cs=data.length;
@@ -1749,30 +1767,25 @@ _safeSetItem(key,val){
     if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
       console.warn('localStorage quota exceeded, purging old drafts');
       const list=this.getRecentList();
-      // remove oldest half of drafts
       const half=Math.max(1,Math.floor(list.length/2));
-      for(let i=list.length-1;i>=list.length-half;i--){
-        if(list[i])localStorage.removeItem(list[i].key);
-      }
+      for(let i=list.length-1;i>=list.length-half;i--){if(list[i])localStorage.removeItem(list[i].key)}
       localStorage.setItem(this.RECENT_KEY,JSON.stringify(list.slice(0,list.length-half)));
-      localStorage.setItem(key,val); // retry
+      localStorage.setItem(key,val);
     }else throw e;
   }
 },
 
 saveSessionToFile(){
   const snap=this.buildSessionSnapshot();
-  const blob=new Blob([JSON.stringify(snap,null,2)],{type:'application/json'});
-  this.downloadBlob(blob,'karaoke-session-'+new Date().toISOString().slice(0,19).replace(/:/g,'-')+'.kep');
+  this.downloadBlob(new Blob([JSON.stringify(snap,null,2)],{type:'application/json'}),
+    'karaoke-session-'+new Date().toISOString().slice(0,19).replace(/:/g,'-')+'.kep');
   this.updateSaveStatus('Saved',false);this.dirty=false;
 },
 
 async loadSessionFromFile(file){
   if(!file)return;
-  try{
-    const txt=await file.text(),snap=JSON.parse(txt);
-    this.applySnapshot(snap);this.updateSaveStatus('Session loaded',false);
-  }catch(e){alert('Ошибка загрузки сессии: '+e.message)}
+  try{const txt=await file.text(),snap=JSON.parse(txt);this.applySnapshot(snap);this.updateSaveStatus('Session loaded',false)}
+  catch(e){alert('Ошибка загрузки сессии: '+e.message)}
 },
 
 applySnapshot(snap){
@@ -2016,8 +2029,6 @@ matchHotkey(cmd,e){
 
 /* ─── hotkeys handler (command-map driven) ───────────────────────── */
 _hotkeyCommandMap(){
-  // Maps keymap command names → App command names
-  // Merge groups: commands that trigger the same action
   return{
     play_pause:'playPause',stop:'stop',
     zoom_in:'zoomIn',zoom_in_num:'zoomIn',zoom_out:'zoomOut',zoom_out_num:'zoomOut',
@@ -2145,7 +2156,6 @@ autoFixOverlaps(){
 
 /* ─── virtual keyboard modal ─────────────────────────────────────── */
 openVkbdModal(){
-  // Убираем предыдущий listener если был
   if(this._vkbdKeyHandler)document.removeEventListener('keydown',this._vkbdKeyHandler);
   const km=this.keymap,rev={};
   Object.entries(km).forEach(([cmd,cfg])=>{if(cfg.key)rev[cfg.key]=(rev[cfg.key]||[]).concat(cmd)});
@@ -2295,12 +2305,8 @@ _setupTouch(){
   sa.addEventListener('touchstart',e=>{
     if(e.touches.length===1){
       const t=e.touches[0];
-      const rect=sa.getBoundingClientRect();
-      const px=t.clientX-rect.left+tc.scrollLeft;
-      const time=px/this.zoom;
-      touchState={type:'seek',startX:t.clientX,startTime:time,startScroll:tc.scrollLeft};
+      touchState={type:'seek',startX:t.clientX,startScroll:tc.scrollLeft};
     }else if(e.touches.length===2){
-      // pinch zoom
       const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
       touchState={type:'pinch',startDist:d,startZoom:this.zoom};
       e.preventDefault();
@@ -2314,12 +2320,10 @@ _setupTouch(){
     }else if(touchState.type==='pinch'&&e.touches.length===2){
       e.preventDefault();
       const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-      const ratio=d/touchState.startDist;
-      this.setZoom(Math.round(touchState.startZoom*ratio),false);
+      this.setZoom(Math.round(touchState.startZoom*(d/touchState.startDist)),false);
     }
   },{passive:false});
   sa.addEventListener('touchend',()=>{touchState=null});
-  // double-tap to play/pause
   let lastTap=0;
   sa.addEventListener('touchend',e=>{
     if(e.changedTouches.length!==1)return;
