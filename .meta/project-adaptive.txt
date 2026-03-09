@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-66f341b26f207e484d4b8fa312e425c29341ed40.idx
-│   │       ├── pack-66f341b26f207e484d4b8fa312e425c29341ed40.pack
-│   │       └── pack-66f341b26f207e484d4b8fa312e425c29341ed40.rev
+│   │       ├── pack-8ce4501faf43d630b1ca8763728c8ce15f580952.idx
+│   │       ├── pack-8ce4501faf43d630b1ca8763728c8ce15f580952.pack
+│   │       └── pack-8ce4501faf43d630b1ca8763728c8ce15f580952.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 21:19:10 UTC
+Сгенерировано: 2026-03-09 21:29:09 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -343,6 +343,15 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
       <button class="btn" id="btn-loop">⇄ Loop</button>
       <button class="btn" id="btn-loop-clear">✕ Loop</button>
       <span class="sep"></span>
+      <select id="playback-rate" title="Playback Speed">
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x</option>
+      </select>
+      <span class="sep"></span>
       <button class="btn" id="btn-mute">🔊</button>
       <input id="volume-slider" type="range" min="0" max="100" value="100" style="width:70px">
       <span class="ro" id="volume-readout">100%</span>
@@ -380,6 +389,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
         <option value="0.25">0.25s</option>
         <option value="0.5">0.5s</option>
         <option value="1">1s</option>
+        <option value="items">Items</option>
       </select>
       <span class="sep"></span>
       <span>Trim:</span>
@@ -477,6 +487,8 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-sel-track">☰ Select All in Track</div>
   <div class="ctx-item" id="ctx-delete">🗑 Delete</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-delete-track">🗑 Delete Entire Track</div>
 </div>
 
 <!-- Session restore modal -->
@@ -589,6 +601,20 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
     <div id="vkbd-hint" style="margin-top:8px;font-size:12px;color:#ff9800;min-height:18px"></div>
     <div class="modal-actions">
       <button class="btn pri" id="btn-vkbd-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Preview modal -->
+<div id="export-preview-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>📋 Export Preview</h3>
+    <p>Предпросмотр JSON перед скачиванием. Можно скопировать или скачать.</p>
+    <textarea id="export-preview-text" style="flex:1;min-height:300px;font:12px Consolas,monospace;background:#111317;color:#e7ebf2;border:1px solid #4a5263;border-radius:6px;padding:8px;resize:vertical" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn" id="btn-export-preview-copy">📋 Copy</button>
+      <button class="btn pri" id="btn-export-preview-download">⬇ Download</button>
+      <button class="btn" id="btn-export-preview-close">Close</button>
     </div>
   </div>
 </div>
