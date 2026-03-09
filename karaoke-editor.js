@@ -98,6 +98,8 @@ cache(){
     btnValidationClose:g('btn-validation-close'),btnValidationExport:g('btn-validation-export'),
     btnValidationFix:g('btn-validation-fix'),btnValidationRerun:g('btn-validation-rerun'),
     helpModal:g('help-modal'),helpList:g('help-list'),btnHelpClose:g('btn-help-close'),
+    vkbdModal:g('vkbd-modal'),vkbdDisplay:g('vkbd-display'),vkbdHint:g('vkbd-hint'),
+    btnVkbd:g('btn-vkbd'),btnVkbdClose:g('btn-vkbd-close'),
     renameModal:g('rename-modal'),renameInput:g('rename-input'),renameColor:g('rename-color'),
     btnRenameOk:g('btn-rename-ok'),btnRenameCancel:g('btn-rename-cancel'),
     loopModal:g('loop-modal'),loopInVal:g('loop-in-val'),loopOutVal:g('loop-out-val'),
@@ -130,6 +132,8 @@ bind(){
   this.ui.btnRecent.onclick=()=>this.openRecentModal();
   this.ui.btnHotkeys.onclick=()=>this.openHotkeysModal();
   this.ui.btnHelp.onclick=()=>this.openHelpModal();
+  this.ui.btnVkbd.onclick=()=>this.openVkbdModal();
+  this.ui.btnVkbdClose.onclick=()=>this.ui.vkbdModal.classList.add('hidden');
 
   // Hotkeys modal
   this.ui.btnHotkeysClose.onclick=()=>this.closeHotkeysModal();
@@ -1958,6 +1962,52 @@ autoFixOverlaps(){
     });
   });
   this.markDirty();this.renderTimeline();this.openValidationModal();
+},
+
+/* ─── virtual keyboard modal ─────────────────────────────────────── */
+openVkbdModal(){
+  // Build reverse map: key -> [commands]
+  const km=this.keymap,rev={};
+  Object.entries(km).forEach(([cmd,cfg])=>{if(cfg.key)rev[cfg.key]=(rev[cfg.key]||[]). concat(cmd)});
+  // Layout rows (simplified QWERTY)
+  const rows=[
+    ['Escape','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'],
+    ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
+    ['Tab','q','Q','w','W','e','r','t','y','u','i','o','p','[',']','\\'],
+    ['CapsLock','a','A','s','S','d','D','f','F','g','G','h','j','k','l',';',"'",'Enter'],
+    ['Shift','z','Z','x','c','C','v','V','b','n','m',',','.','/','Shift'],
+    ['Ctrl','Alt','Space','Alt','Ctrl']
+  ];
+  const getCmd=k=>{
+    const candidates=[k,k.toUpperCase(),k.toLowerCase()];
+    for(const c of candidates){if(rev[c])return rev[c].map(cmd=>km[cmd]?.ru||cmd).join(' / ')}
+    // check with modifiers shown separately
+    return null;
+  };
+  const html=rows.map(row=>'<div style="display:flex;gap:3px;margin-bottom:3px">'+
+    row.map(k=>{
+      const cmd=getCmd(k);
+      const bg=cmd?'background:#1e3a2e;border-color:#43a047':'background:#1b1f27;border-color:#465063';
+      return `<div title="${cmd||k}" style="${bg};border:1px solid;border-radius:4px;padding:3px 5px;min-width:32px;text-align:center;font-size:10px;cursor:default;position:relative">
+        <div style="font-weight:700;font-size:11px">${k.length>4?k.slice(0,4):k}</div>
+        ${cmd?`<div style="font-size:9px;color:#7bd882;overflow:hidden;max-width:56px;text-overflow:ellipsis;white-space:nowrap">${cmd}</div>`:''}
+      </div>`;
+    }).join('')
+  +'</div>').join('');
+  this.ui.vkbdDisplay.innerHTML=html;
+  this.ui.vkbdHint.textContent='';
+  // live key preview
+  this._vkbdKeyHandler=ev=>{
+    const k=ev.key;
+    const cmd=Object.entries(km).find(([,c])=>c.key&&(c.key===k||c.key.endsWith('+'+k)));
+    this.ui.vkbdHint.textContent=cmd?`${k} → ${cmd[1].ru||cmd[0]}`:`${k} — не назначено`;
+  };
+  document.addEventListener('keydown',this._vkbdKeyHandler);
+  this.ui.btnVkbdClose.onclick=()=>{
+    document.removeEventListener('keydown',this._vkbdKeyHandler);
+    this.ui.vkbdModal.classList.add('hidden');
+  };
+  this.ui.vkbdModal.classList.remove('hidden');
 },
 
 /* ─── help modal ─────────────────────────────────────────────────── */
