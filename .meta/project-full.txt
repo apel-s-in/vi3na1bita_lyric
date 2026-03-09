@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-4c249eebfcd24cf6fafa65480ae62c280a52b04f.idx
-│   │       ├── pack-4c249eebfcd24cf6fafa65480ae62c280a52b04f.pack
-│   │       └── pack-4c249eebfcd24cf6fafa65480ae62c280a52b04f.rev
+│   │       ├── pack-48760b2babf7dd1141c512d434d0cf734ed1acca.idx
+│   │       ├── pack-48760b2babf7dd1141c512d434d0cf734ed1acca.pack
+│   │       └── pack-48760b2babf7dd1141c512d434d0cf734ed1acca.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 19:57:40 UTC
+Сгенерировано: 2026-03-09 19:58:20 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -469,6 +469,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
   <div class="ctx-item" id="ctx-zoom-selection">⊡ Zoom to Selection</div>
   <div class="ctx-item" id="ctx-scroll-selection">↔ Scroll to Selection</div>
   <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-sel-track">☰ Select All in Track</div>
   <div class="ctx-item" id="ctx-delete">🗑 Delete</div>
 </div>
 
