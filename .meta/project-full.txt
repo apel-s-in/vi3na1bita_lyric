@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-9454cfa43f393b623fa9c7d2e0b58c8be802faa0.idx
-│   │       ├── pack-9454cfa43f393b623fa9c7d2e0b58c8be802faa0.pack
-│   │       └── pack-9454cfa43f393b623fa9c7d2e0b58c8be802faa0.rev
+│   │       ├── pack-5c0070510eb941c08efb67f57139b957c20f148a.idx
+│   │       ├── pack-5c0070510eb941c08efb67f57139b957c20f148a.pack
+│   │       └── pack-5c0070510eb941c08efb67f57139b957c20f148a.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 20:30:30 UTC
+Сгенерировано: 2026-03-09 20:31:09 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
