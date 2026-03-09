@@ -64,6 +64,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .track-head button.locked{background:#7b2d2d;border-color:#a44}
 .track-head button.sol{background:#7b5a00;border-color:#c8900a}
 .track-head button.col-btn{background:#252932;border-color:#445}
+.track-head button:disabled{opacity:.3;cursor:default;pointer-events:none}
 
 /* TRACKS CONTAINER */
 .tracks{position:absolute;top:120px;left:0;right:0;bottom:0;padding-bottom:90px;z-index:10}
