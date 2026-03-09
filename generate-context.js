@@ -11,7 +11,7 @@ const SELF_FULL_REL = toUnix(path.relative(ROOT, FULL_FILE)), SELF_ADAPT_REL = t
 const TEXT_EXTS = new Set([".html",".htm",".css",".js",".mjs",".cjs",".ts",".tsx",".json",".webmanifest",".md",".txt",".yml",".yaml"]);
 const globToRegExp = pat => new RegExp("^" + pat.replace(/[.+^${}()|[\]\\]/g, "\\$").replace(/\*\*/g, "___GLOBSTAR___").replace(/\*/g, "[^/]*").replace(/___GLOBSTAR___/g, ".*") + "$");
 const EXCLUDE_FILES_PATTERNS = ["node_modules/**",".git/**",".meta/**","assets/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store","ai-rules.txt"].map(globToRegExp);
-const EXCLUDE_TREE_PATTERNS = ["node_modules/**",".git/**",".meta/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store"].map(globToRegExp);
+const EXCLUDE_TREE_PATTERNS = ["node_modules/**",".meta/**",".next/**","dist/**","build/**","out/**","coverage/**",".cache/**",".vscode/**",".idea/**",".husky/**","**/*.log",".DS_Store"].map(globToRegExp);
 const PRIORITY = { critical: [/^karaoke-editor\.html?$/i,/^karaoke-editor\.js$/i,/^karaoke-editor\.css$/i,/^generate-index\.(js|mjs|cjs)$/i,/^\.github\/workflows\/.*\.ya?ml$/i], high: [/^AudioController\.(js|mjs|cjs|ts)$/i,/^GlobalState\.(js|mjs|cjs|ts)$/i,/^scripts\/.*\.(mjs|js|ts)$/i,/^performance\/.*\.(js|ts)$/i,/^.*\.(ya?ml)$/i], medium: [/^.*\.(js|mjs|cjs|ts|tsx|json|html?|css)$/i] };
 const isTextFile = rel => TEXT_EXTS.has(path.extname(rel).toLowerCase());
 const readText = rel => { try { return fs.readFileSync(path.join(ROOT, rel), "utf8"); } catch (e) { return `// read error: ${e.message}`; } };
