@@ -670,6 +670,7 @@ _trimRight(tr,it,raw,mode){
   if(mode==='keep'){
     const nx=this.getNextNeighbor(tr,it);
     if(nx)raw=Math.min(raw,nx.start);
+    it.end=raw;return;
   }else if(mode==='ripple'){
     const oldEnd=it.end;
     it.end=raw;
@@ -1650,24 +1651,18 @@ duplicateSelected(){
   this.markDirty();this.afterEdit();
 },
 
-addNewLine(){
-  const tr=this.activeTrack();if(!tr)return;
+_addItem(kind){
+  const tr=this.activeTrack();if(!tr||(kind==='word'&&tr.type==='line'))return;
   const t=this.audioElement.currentTime;
-  this.pushHistory('Add Line');
-  const it={id:'L_'+this.uid(),kind:'line',start:t,end:t+2,text:'New Line'};
+  this.pushHistory('Add '+kind);
+  const it=kind==='line'
+    ?{id:'L_'+this.uid(),kind:'line',start:t,end:t+2,text:'New Line'}
+    :{id:'W_'+this.uid(),kind:'word',lineId:tr.items.find(i=>i.kind==='line'&&i.start<=t&&i.end>t)?.id||null,start:t,end:t+.5,text:'word',chars:[]};
   tr.items.push(it);
   this.sortTrack(tr);this.markDirty();this.renderTimeline();this.selectItem(tr.id,it.id);this.renderPreview();
 },
-
-addNewWord(){
-  const tr=this.activeTrack();if(!tr||tr.type==='line')return;
-  const t=this.audioElement.currentTime;
-  const lineParent=tr.items.find(i=>i.kind==='line'&&i.start<=t&&i.end>t);
-  this.pushHistory('Add Word');
-  const it={id:'W_'+this.uid(),kind:'word',lineId:lineParent?.id||null,start:t,end:t+.5,text:'word',chars:[]};
-  tr.items.push(it);
-  this.sortTrack(tr);this.markDirty();this.renderTimeline();this.selectItem(tr.id,it.id);this.renderPreview();
-},
+addNewLine(){this._addItem('line')},
+addNewWord(){this._addItem('word')},
 
 deleteSelected(){
   const tr=this.activeTrack();if(!tr||!this.selected.ids.size)return;
