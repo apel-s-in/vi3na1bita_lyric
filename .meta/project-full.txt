@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-3ba16a74d5dc1ad6a8d62f21190159944c588b00.idx
-│   │       ├── pack-3ba16a74d5dc1ad6a8d62f21190159944c588b00.pack
-│   │       └── pack-3ba16a74d5dc1ad6a8d62f21190159944c588b00.rev
+│   │       ├── pack-6fd0d74eece07f877da3d82b0f7885018796d3e5.idx
+│   │       ├── pack-6fd0d74eece07f877da3d82b0f7885018796d3e5.pack
+│   │       └── pack-6fd0d74eece07f877da3d82b0f7885018796d3e5.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 20:37:15 UTC
+Сгенерировано: 2026-03-09 20:44:00 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -885,7 +885,14 @@ bind(){
   this.ui.btnMute.onclick=()=>this.toggleMute();
 
   // Audio / Playhead
-  this.audioElement.addEventListener('timeupdate',()=>{this.syncPlayhead();this.handleLoopTick()});
+  this.audioElement.addEventListener('timeupdate',()=>{
+    this.syncPlayhead();this.handleLoopTick();
+    // throttled preview on timeupdate (when not using RAF playback)
+    if(this.audioElement.paused){
+      clearTimeout(this._previewDebounce);
+      this._previewDebounce=setTimeout(()=>this.renderPreview(),80);
+    }
+  });
   this.audioElement.addEventListener('loadedmetadata',()=>{this.duration=this.audioElement.duration||this.duration||0;this.fullRender()});
   this.ui.scrollArea.addEventListener('mousedown',e=>this.handleTimelineMouseDown(e));
   this.ui.playheadHandle.addEventListener('mousedown',e=>this.startPlayheadDrag(e));
@@ -906,6 +913,9 @@ bind(){
   });
   this.setupContext();
 
+  // Basic touch support
+  this._setupTouch();
+
   // Keyboard
   document.addEventListener('keydown',e=>this.handleHotkeys(e));
 
@@ -918,8 +928,44 @@ bind(){
     this.ui.restoreModal.classList.add('hidden');
   };
 
+  // Drag & drop files onto timeline
+  const dropZone=this.ui.timelineContainer;
+  ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.style.outline='2px dashed var(--acc)'}));
+  ['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropZone.style.outline=''}));
+  dropZone.addEventListener('drop',e=>{
+    const files=e.dataTransfer?.files;if(!files||!files.length)return;
+    for(const f of files){
+      if(f.type.startsWith('audio/')){this.loadAudio(f);break}
+      if(f.name.endsWith('.json')){
+        const isWords=f.name.toLowerCase().includes('word');
+        this.loadTrackJSON(f,isWords?'words':'line');break;
+      }
+      if(f.name.endsWith('.kep')){this.loadSessionFromFile(f);break}
+    }
+  });
+
   // Dirty warning
   window.addEventListener('beforeunload',e=>{if(this.dirty){e.preventDefault();e.returnValue=''}});
+
+  // Wheel zoom: Ctrl+wheel = zoom, Shift+wheel = vertical zoom
+  this.ui.timelineContainer.addEventListener('wheel',e=>{
+    if(e.ctrlKey){
+      e.preventDefault();
+      const delta=e.deltaY<0?10:-10;
+      this.setZoom(this.zoom+delta,true);
+    }else if(e.shiftKey){
+      e.preventDefault();
+      const delta=e.deltaY<0?.1:-.1;
+      this.setVerticalZoom(this.verticalZoom+delta);
+    }
+  },{passive:false});
+
+  // Scroll-based viewport culling re-render
+  this._scrollRenderTimer=null;
+  this.ui.timelineContainer.addEventListener('scroll',()=>{
+    clearTimeout(this._scrollRenderTimer);
+    this._scrollRenderTimer=setTimeout(()=>this.renderTimeline(),60);
+  });
 
   // Resize observer
   if(window.ResizeObserver){
@@ -1049,12 +1095,19 @@ applyVerticalZoom(){
   document.documentElement.style.setProperty('--trkGap',row+'px');
 },
 
+_waveCache:null,_waveCacheKey:'',
+
 drawWaveform(){
   const c=this.ui.waveCanvas,x=c.getContext('2d'),
         w=Math.ceil(Math.max(1,(this.duration||1)*this.zoom)),
         h=Math.round(80*this.verticalZoom);
   c.width=w;c.height=h;x.clearRect(0,0,w,h);
   if(!this.audioBuffer){x.fillStyle='#3a3d46';x.fillRect(0,h/2-1,w,2);return}
+  // cache: reuse if zoom+height unchanged
+  const cacheKey=w+'_'+h;
+  if(this._waveCache&&this._waveCacheKey===cacheKey){
+    x.drawImage(this._waveCache,0,0);return;
+  }
   const d=this.audioBuffer.getChannelData(0),step=Math.max(1,Math.ceil(d.length/w)),amp=h/2;
   x.fillStyle='#5a7fa8';
   for(let i=0;i<w;i++){
@@ -1062,6 +1115,12 @@ drawWaveform(){
     for(let j=s;j<e2;j++){const v=d[j];if(v<mn)mn=v;if(v>mx)mx=v}
     x.fillRect(i,(1+mn)*amp,1,Math.max(1,(mx-mn)*amp));
   }
+  // store to offscreen cache
+  try{
+    const oc=document.createElement('canvas');oc.width=w;oc.height=h;
+    oc.getContext('2d').drawImage(c,0,0);
+    this._waveCache=oc;this._waveCacheKey=cacheKey;
+  }catch(e){/* canvas too large — skip cache */}
 },
 
 renderRuler(){
@@ -1168,6 +1227,10 @@ renderTimeline(){
   const w=Math.ceil(this.duration*this.zoom);
   const row=Math.round(56*this.verticalZoom),lh=Math.round(34*this.verticalZoom);
   const layerM=this.ui.layerMode.value;
+  // viewport culling: only render items visible in scroll window
+  const sc=this.ui.timelineContainer;
+  const vpLeft=sc.scrollLeft/this.zoom,vpRight=(sc.scrollLeft+sc.clientWidth)/this.zoom;
+  const vpMargin=2; // seconds margin to avoid pop-in
 
   this.getVisibleTracks().forEach(tr=>{
     const ti=this.project.tracks.indexOf(tr);
@@ -1178,6 +1241,8 @@ renderTimeline(){
     c.appendChild(trkBg);
     const isActive=tr.id===this.project.activeTrackId&&!tr.locked;
     this.visibleItems(tr,layerM).forEach(it=>{
+      // viewport culling check
+      if(it.end<vpLeft-vpMargin||it.start>vpRight+vpMargin)return;
       c.appendChild(this.createTrackItemElement(tr,it,trackTop,lh,color,isActive));
     });
   });
@@ -2050,6 +2115,11 @@ togglePlay(){
 
 _tickRAF(){
   this.syncPlayhead();
+  // debounced preview: update at most every 100ms during playback
+  const now=performance.now();
+  if(!this._lastPreviewTick||now-this._lastPreviewTick>100){
+    this.renderPreview();this._lastPreviewTick=now;
+  }
   if(!this.audioElement.paused)this._raf=requestAnimationFrame(()=>this._tickRAF());
 },
 
@@ -2204,14 +2274,21 @@ exportZip(){
   }catch(e){alert('ZIP error: '+e.message);console.error(e)}
 },
 
+_crc32Table:null,
+_getCrc32Table(){
+  if(this._crc32Table)return this._crc32Table;
+  const t=new Uint32Array(256);
+  for(let i=0;i<256;i++){let n=i;for(let k=0;k<8;k++)n=n&1?0xEDB88320^(n>>>1):n>>>1;t[i]=n}
+  return this._crc32Table=t;
+},
+
 buildZipBlob(files){
   const u32le=(n,b,o)=>{b[o]=n&255;b[o+1]=(n>>8)&255;b[o+2]=(n>>16)&255;b[o+3]=(n>>24)&255};
   const u16le=(n,b,o)=>{b[o]=n&255;b[o+1]=(n>>8)&255};
+  const tbl=this._getCrc32Table();
   const crc32=(data)=>{
     let c=0xFFFFFFFF;
-    const t=new Uint32Array(256);
-    for(let i=0;i<256;i++){let n=i;for(let k=0;k<8;k++)n=n&1?0xEDB88320^(n>>>1):n>>>1;t[i]=n}
-    for(let i=0;i<data.length;i++)c=t[(c^data[i])&255]^(c>>>8);
+    for(let i=0;i<data.length;i++)c=tbl[(c^data[i])&255]^(c>>>8);
     return(c^0xFFFFFFFF)>>>0;
   };
   const parts=[],cdirs=[];let offset=0;const enc=new TextEncoder();
@@ -2258,11 +2335,29 @@ saveAutoDraft(key){
     const snap=this.buildSessionSnapshot();
     if(!this._draftKey||Date.now()-this._draftKeyTs>300000){this._draftKey='keDraft_'+Date.now();this._draftKeyTs=Date.now()}
     const rKey=key||this._draftKey;
-    localStorage.setItem(this.DRAFT_KEY,JSON.stringify(snap));
-    localStorage.setItem(rKey,JSON.stringify(snap));
+    const json=JSON.stringify(snap);
+    this._safeSetItem(this.DRAFT_KEY,json);
+    this._safeSetItem(rKey,json);
     this.addToRecent(rKey,snap);
     this.updateSaveStatus('Autosaved',false);
   }catch(e){console.warn('Autosave failed',e);this.updateSaveStatus('Autosave error',true)}
+},
+
+_safeSetItem(key,val){
+  try{localStorage.setItem(key,val)}
+  catch(e){
+    if(e.name==='QuotaExceededError'||e.code===22||e.code===1014){
+      console.warn('localStorage quota exceeded, purging old drafts');
+      const list=this.getRecentList();
+      // remove oldest half of drafts
+      const half=Math.max(1,Math.floor(list.length/2));
+      for(let i=list.length-1;i>=list.length-half;i--){
+        if(list[i])localStorage.removeItem(list[i].key);
+      }
+      localStorage.setItem(this.RECENT_KEY,JSON.stringify(list.slice(0,list.length-half)));
+      localStorage.setItem(key,val); // retry
+    }else throw e;
+  }
 },
 
 saveSessionToFile(){
@@ -2791,6 +2886,47 @@ restoreUiPrefs(){
     this.ui.snapSelect.value=this.snapStep;
     this.applyVol();this.updateVolumeReadout();this.updateZoomReadout();this.updateVZoomReadout();
   }catch(e){console.warn(e)}
+},
+
+/* ─── touch support ──────────────────────────────────────────────── */
+_setupTouch(){
+  const tc=this.ui.timelineContainer,sa=this.ui.scrollArea;
+  let touchState=null;
+  sa.addEventListener('touchstart',e=>{
+    if(e.touches.length===1){
+      const t=e.touches[0];
+      const rect=sa.getBoundingClientRect();
+      const px=t.clientX-rect.left+tc.scrollLeft;
+      const time=px/this.zoom;
+      touchState={type:'seek',startX:t.clientX,startTime:time,startScroll:tc.scrollLeft};
+    }else if(e.touches.length===2){
+      // pinch zoom
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      touchState={type:'pinch',startDist:d,startZoom:this.zoom};
+      e.preventDefault();
+    }
+  },{passive:false});
+  sa.addEventListener('touchmove',e=>{
+    if(!touchState)return;
+    if(touchState.type==='seek'&&e.touches.length===1){
+      const dx=e.touches[0].clientX-touchState.startX;
+      tc.scrollLeft=touchState.startScroll-dx;
+    }else if(touchState.type==='pinch'&&e.touches.length===2){
+      e.preventDefault();
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      const ratio=d/touchState.startDist;
+      this.setZoom(Math.round(touchState.startZoom*ratio),false);
+    }
+  },{passive:false});
+  sa.addEventListener('touchend',()=>{touchState=null});
+  // double-tap to play/pause
+  let lastTap=0;
+  sa.addEventListener('touchend',e=>{
+    if(e.changedTouches.length!==1)return;
+    const now=Date.now();
+    if(now-lastTap<300)this.togglePlay();
+    lastTap=now;
+  });
 },
 
 /* ─── utils ──────────────────────────────────────────────────────── */
