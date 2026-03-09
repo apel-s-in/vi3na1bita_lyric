@@ -465,7 +465,36 @@ getOrderedKindItems(tr,kind){
   return tr.items.filter(i=>i.kind===kind).sort((a,b)=>a.start-b.start);
 },
 
-/** Get previous neighbor of same kind, optionally excluding a set of ids */
+/**
+ * Ordered prev — просто предыдущий по порядку, без gap-constraint.
+ * Для merge/duplicate/roll.
+ */
+getPrevOrderedNeighbor(tr,it,excludeSet){
+  const same=this.getOrderedKindItems(tr,it.kind);
+  const idx=same.findIndex(x=>x.id===it.id);
+  for(let i=idx-1;i>=0;i--){
+    if(!excludeSet||!excludeSet.has(same[i].id))return same[i];
+  }
+  return null;
+},
+
+/**
+ * Ordered next — просто следующий по порядку, без gap-constraint.
+ * Для merge/duplicate/roll.
+ */
+getNextOrderedNeighbor(tr,it,excludeSet){
+  const same=this.getOrderedKindItems(tr,it.kind);
+  const idx=same.findIndex(x=>x.id===it.id);
+  for(let i=idx+1;i<same.length;i++){
+    if(!excludeSet||!excludeSet.has(same[i].id))return same[i];
+  }
+  return null;
+},
+
+/**
+ * Non-overlap prev — только если реально заканчивается до it.start.
+ * Для keep-mode trim constraint.
+ */
 getPrevNeighbor(tr,it,excludeSet){
   const same=this.getOrderedKindItems(tr,it.kind);
   for(let i=same.length-1;i>=0;i--){
@@ -476,7 +505,10 @@ getPrevNeighbor(tr,it,excludeSet){
   return null;
 },
 
-/** Get next neighbor of same kind, optionally excluding a set of ids */
+/**
+ * Non-overlap next — только если реально начинается после it.end.
+ * Для keep-mode trim constraint.
+ */
 getNextNeighbor(tr,it,excludeSet){
   const same=this.getOrderedKindItems(tr,it.kind);
   for(let i=0;i<same.length;i++){
@@ -615,34 +647,22 @@ applyHandleTrim(tr,it,side,rawTarget,mode){
 _trimLeft(tr,it,raw,mode){
   raw=Math.max(0,Math.min(raw,it.end-this.MIN_DUR));
   if(mode==='keep'){
-    // Clamp to prev neighbor's end
     const pr=this.getPrevNeighbor(tr,it);
     if(pr)raw=Math.max(raw,pr.end);
+    it.start=raw;
   }else if(mode==='ripple'){
-    // Allow extending left, but chain-push left neighbors
     const oldStart=it.start;
     it.start=raw;
+    // Расширяем влево → толкаем соседей влево
     if(raw<oldStart){
-      // Pushing left
       const others=this.getOuterItems(tr,it.kind,new Set([it.id]));
       this._rippleAffected=new Set();
       this._chainPushLeft(others,raw);
-    }else if(raw>oldStart){
-      // Shrinking from left — pull right neighbors left (close gap)
-      // Only if they were touching
-      const others=this.getOuterItems(tr,it.kind,new Set([it.id]));
-      const delta=raw-oldStart;
-      for(const o of others){
-        if(o.start>=oldStart-1e-9&&o.start<raw+1e-9){
-          // This neighbor was adjacent or overlapping the old start area
-          // Don't ripple-pull on shrink — that would be confusing
-          break;
-        }
-      }
     }
-    return;
+    // Сжимаем слева → просто shrink, без ripple-pull (по дизайну)
+  }else{
+    it.start=raw;
   }
-  it.start=raw;
 },
 
 _trimRight(tr,it,raw,mode){
@@ -666,14 +686,15 @@ _trimRight(tr,it,raw,mode){
 
 /* ─── TRIM ENGINE v2: roll trim ──────────────────────────────────── */
 
-/** Find roll pair for a handle drag */
+/** Find roll pair for a handle drag (ordered neighbors, tolerated gap up to 0.5s) */
 findRollPair(tr,it,side){
+  const THRESH=0.5;
   if(side==='right'){
-    const nx=this.getNextNeighbor(tr,it);
-    if(nx&&Math.abs(it.end-nx.start)<.05)return{a:it,b:nx};
+    const nx=this.getNextOrderedNeighbor(tr,it);
+    if(nx&&Math.abs(it.end-nx.start)<THRESH)return{a:it,b:nx};
   }else{
-    const pr=this.getPrevNeighbor(tr,it);
-    if(pr&&Math.abs(pr.end-it.start)<.05)return{a:pr,b:it};
+    const pr=this.getPrevOrderedNeighbor(tr,it);
+    if(pr&&Math.abs(pr.end-it.start)<THRESH)return{a:pr,b:it};
   }
   return null;
 },
@@ -1524,21 +1545,12 @@ bindInspectorBatch(tr,items){
 
 batchMoveRipple(tr,selItems,delta){
   if(Math.abs(delta)<1e-9)return;
-  let fd=delta;
-  selItems.forEach(i=>{fd=Math.max(fd,-i.start)});
-  if(this.ui.dragMode.value!=='free'){
-    const selIds=new Set(selItems.map(i=>i.id));
-    const others=tr.items.filter(i=>!selIds.has(i.id));
-    selItems.forEach(i=>{
-      const ns=i.start+fd,ne=i.end+fd;
-      others.forEach(o=>{
-        if(o.kind!==i.kind)return;
-        if(fd>0&&o.start>=i.end-1e-9&&o.start<ne){const lim=ne-o.start;o.start+=lim;o.end+=lim}
-        if(fd<0&&o.end<=i.start+1e-9&&o.end>ns){const lim=o.end-ns;o.start-=lim;o.end-=lim}
-      });
-    });
-  }
-  selItems.forEach(i=>{i.start=Math.max(0,i.start+fd);i.end=Math.max(i.start+this.MIN_DUR,i.end+fd)});
+  // Строим sel-snapshot в формате move-helpers
+  const sel=selItems.map(i=>({item:i,origStart:i.start,origEnd:i.end}));
+  const mode=this.ui.dragMode.value;
+  if(mode==='ripple')this.applyRippleMove(tr,sel,delta);
+  else if(mode==='keep')this.applyNoOverlapMove(tr,sel,delta);
+  else this.applyFreeMove(sel,delta);
   this.sortTrack(tr);
 },
 
@@ -1594,7 +1606,7 @@ mergeSelectedWithNext(){
   this.pushHistory('Merge Next');
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
-    const nx=this.getNextNeighbor(tr,it);if(!nx)return;
+    const nx=this.getNextOrderedNeighbor(tr,it);if(!nx)return;
     it.end=nx.end;it.text=this.mergeTexts(it.text,nx.text);
     it.chars=[...(it.chars||[]),...(nx.chars||[])];
     tr.items=tr.items.filter(i=>i.id!==nx.id);
@@ -1609,7 +1621,7 @@ mergeSelectedWithPrev(){
   this.pushHistory('Merge Prev');
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
-    const pr=this.getPrevNeighbor(tr,it);if(!pr)return;
+    const pr=this.getPrevOrderedNeighbor(tr,it);if(!pr)return;
     pr.end=it.end;pr.text=this.mergeTexts(pr.text,it.text);
     pr.chars=[...(pr.chars||[]),...(it.chars||[])];
     tr.items=tr.items.filter(i=>i.id!==it.id);
@@ -1627,7 +1639,7 @@ duplicateSelected(){
   ids.forEach(id=>{
     const it=this.itemById(tr.id,id);if(!it)return;
     const dur=it.end-it.start;
-    const nx=this.getNextNeighbor(tr,it);
+    const nx=this.getNextOrderedNeighbor(tr,it);
     const newStart=nx?Math.max(it.end,nx.start-dur):it.end;
     const nit={...it,id:(it.kind==='word'?'W_':'L_')+this.uid(),start:newStart,end:newStart+dur,
       chars:JSON.parse(JSON.stringify(it.chars||[]))};
@@ -2285,9 +2297,8 @@ matchHotkey(cmd,e){
 },
 
 /* ─── hotkeys handler (command-map driven) ───────────────────────── */
-_hotkeyCommandMap(){
-  return{
-    play_pause:'playPause',stop:'stop',
+_hotkeyCommandMap:Object.freeze({
+  play_pause:'playPause',stop:'stop',
     zoom_in:'zoomIn',zoom_in_num:'zoomIn',zoom_out:'zoomOut',zoom_out_num:'zoomOut',
     vzoom_in:'vzoomIn',vzoom_out:'vzoomOut',
     seek_left:'seekLeft',seek_right:'seekRight',
@@ -2311,8 +2322,7 @@ _hotkeyCommandMap(){
     stretch_group_left:'stretchGroupLeft',stretch_group_right:'stretchGroupRight',
     nav_prev:'navPrev',nav_next:'navNext',
     export_preview:'exportPreview',delete_track:'deleteTrack'
-  };
-},
+}),
 
 handleHotkeys(e){
   const tag=e.target.tagName;
@@ -2321,8 +2331,7 @@ handleHotkeys(e){
   const allowInInput=['undo','redo','redo2','save_json','open_hotkeys','select_all'];
   if(isInput&&!allowInInput.some(cmd=>this.matchHotkey(cmd,e)))return;
 
-  const map=this._hotkeyCommandMap();
-  for(const [hkCmd,appCmd] of Object.entries(map)){
+  for(const [hkCmd,appCmd] of Object.entries(this._hotkeyCommandMap)){
     if(this.matchHotkey(hkCmd,e)){
       e.preventDefault();
       this.runCommand(appCmd);
@@ -2613,7 +2622,6 @@ activeTrack(){return this.trackById(this.project.activeTrackId)},
 trackById(id){return this.project.tracks.find(t=>t.id===id)||null},
 trackByType(type){return this.project.tracks.find(t=>t.type===type)||null},
 itemById(tid,id){const tr=this.trackById(tid);return tr?tr.items.find(i=>i.id===id)||null:null},
-sortItems(arr){arr.sort((a,b)=>a.start-b.start)},
 sortTrack(tr){tr.items.sort((a,b)=>a.start-b.start)},
 sortActiveTrack(){const tr=this.activeTrack();if(tr)this.sortTrack(tr)},
 uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4)},
