@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Karaoke Editor Pro</title>
+<link rel="stylesheet" href="karaoke-editor.css">
+</head>
+<body>
+<header class="toolbar">
+  <div class="row">
+    <div class="grp">
+      <label class="btn">Load Audio<input id="audio-upload" type="file" accept="audio/*" hidden></label>
+      <label class="btn">Load Line JSON<input id="line-upload" type="file" accept=".json,application/json" hidden></label>
+      <label class="btn">Load Words JSON<input id="words-upload" type="file" accept=".json,application/json" hidden></label>
+      <button class="btn pri" id="btn-export-active">Export Active</button>
+      <button class="btn" id="btn-export-line">Export Line</button>
+      <button class="btn" id="btn-export-words">Export Words</button>
+      <button class="btn" id="btn-export-all">Export All</button>
+      <button class="btn" id="btn-restore-session">Restore Draft</button>
+      <button class="btn" id="btn-hotkeys">Hotkeys</button>
+    </div>
+    <div class="grp">
+      <button class="btn" id="btn-play">Play/Pause</button>
+      <button class="btn" id="btn-stop">Stop</button>
+      <button class="btn" id="btn-center-playhead">Center</button>
+      <button class="btn" id="btn-loop">Loop Sel</button>
+      <span class="time" id="time-display">0:00.00 / 0:00.00</span>
+    </div>
+    <div class="grp">
+      <span class="badge" id="mode-indicator">TRACKS: 0</span>
+      <span class="save-status" id="save-status">Saved</span>
+      <button class="btn" id="btn-undo">Undo</button>
+      <button class="btn" id="btn-redo">Redo</button>
+    </div>
+  </div>
+
+  <div class="row row2">
+    <div class="grp">
+      <span>Z:</span><input id="zoom-slider" type="range" min="10" max="320" value="80"><span class="ro" id="zoom-readout">80 px/s</span>
+      <span class="sep"></span>
+      <span>V:</span><input id="vzoom-slider" type="range" min="70" max="220" value="100"><span class="ro" id="vzoom-readout">100%</span>
+      <span class="sep"></span>
+      <span>Snap:</span>
+      <select id="snap-select">
+        <option value="0">Off</option>
+        <option value="0.1">0.1s</option>
+        <option value="0.25">0.25s</option>
+        <option value="0.5">0.5s</option>
+        <option value="1">1s</option>
+      </select>
+      <span class="sep"></span>
+      <span>Trim:</span>
+      <select id="drag-mode">
+        <option value="free">Free</option>
+        <option value="keep">Keep Order</option>
+        <option value="roll">Roll Trim</option>
+        <option value="ripple">Ripple Trim</option>
+      </select>
+    </div>
+
+    <div class="grp">
+      <button class="btn" id="btn-select-all">Select All</button>
+      <button class="btn" id="btn-deselect">Deselect</button>
+      <button class="btn" id="btn-split">Split at Playhead</button>
+      <button class="btn" id="btn-merge">Merge Next</button>
+      <button class="btn" id="btn-delete">Delete</button>
+    </div>
+
+    <div class="grp">
+      <button class="btn" id="btn-mute">Mute</button>
+      <span>Vol:</span><input id="volume-slider" type="range" min="0" max="100" value="100"><span class="ro" id="volume-readout">100%</span>
+      <span class="sep"></span>
+      <label class="ck"><input id="auto-scroll" type="checkbox" checked>Auto-Scroll</label>
+      <label class="ck"><input id="autosave-enabled" type="checkbox" checked>Autosave</label>
+      <select id="autosave-interval">
+        <option value="5">5s</option>
+        <option value="10" selected>10s</option>
+        <option value="30">30s</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<main class="workspace">
+  <div class="timeline-wrap" id="timeline-container">
+    <div class="timeline-scroll" id="timeline-scroll-area">
+      <canvas id="ruler-canvas"></canvas>
+      <canvas id="grid-canvas"></canvas>
+      <canvas id="waveform-canvas"></canvas>
+
+      <div class="playhead" id="playhead"><div class="playhead-handle" id="playhead-handle"></div></div>
+      <div id="selection-box" class="selbox hidden"></div>
+
+      <div class="track-headers" id="track-headers"></div>
+      <div id="tracks-container" class="tracks"></div>
+    </div>
+  </div>
+
+  <div class="resizer" id="sidebar-resizer"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <section class="panel" id="inspector">
+      <h3>Inspector</h3>
+      <div id="inspector-content"><p class="muted">Select element(s)</p></div>
+    </section>
+    <div class="resizer-h" id="preview-resizer"></div>
+    <section class="panel panel2">
+      <h3>Live Lyrics Preview</h3>
+      <div id="lyrics-container" class="lyrics"><p class="muted">Load JSON to preview</p></div>
+    </section>
+  </aside>
+</main>
+
+<div id="context-menu" class="ctx hidden">
+  <div class="ctx-item" id="ctx-edit">Edit Text</div>
+  <div class="ctx-item" id="ctx-split">Split at Playhead</div>
+  <div class="ctx-item" id="ctx-merge-next">Merge With Next</div>
+  <div class="ctx-item" id="ctx-move-playhead">Move to Playhead</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-delete">Delete</div>
+</div>
+
+<div id="restore-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Найден черновик</h3>
+    <p>Восстановить последнюю автосохранённую сессию?</p>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-restore-yes">Restore</button>
+      <button class="btn" id="btn-restore-no">Ignore</button>
+      <button class="btn" id="btn-restore-delete">Delete Draft</button>
+    </div>
+  </div>
+</div>
+
+<div id="hotkeys-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>Горячие клавиши</h3>
+    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Назначения сохраняются локально.</p>
+    <div id="hotkeys-list" class="hotkeys-list"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-hotkeys-reset">Reset Default</button>
+      <button class="btn pri" id="btn-hotkeys-save">Save</button>
+      <button class="btn" id="btn-hotkeys-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<audio id="audio-player"></audio>
+<div id="loader" class="loader hidden">Processing...</div>
+<script src="karaoke-editor.js"></script>
+</body>
+</html>
