@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-86f5baa33cd8208db4ef93098643445dc38ecfec.idx
-│   │       ├── pack-86f5baa33cd8208db4ef93098643445dc38ecfec.pack
-│   │       └── pack-86f5baa33cd8208db4ef93098643445dc38ecfec.rev
+│   │       ├── pack-6b2b109dbf4fcf0005b0f8007ee31b510f6238b3.idx
+│   │       ├── pack-6b2b109dbf4fcf0005b0f8007ee31b510f6238b3.pack
+│   │       └── pack-6b2b109dbf4fcf0005b0f8007ee31b510f6238b3.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 21:34:54 UTC
+Сгенерировано: 2026-03-09 21:35:42 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -185,6 +185,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .track-head button.locked{background:#7b2d2d;border-color:#a44}
 .track-head button.sol{background:#7b5a00;border-color:#c8900a}
 .track-head button.col-btn{background:#252932;border-color:#445}
+.track-head button:disabled{opacity:.3;cursor:default;pointer-events:none}
 
 /* TRACKS CONTAINER */
 .tracks{position:absolute;top:120px;left:0;right:0;bottom:0;padding-bottom:90px;z-index:10}
