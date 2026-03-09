@@ -17,8 +17,10 @@
       <button class="btn" id="btn-export-line">Export Line</button>
       <button class="btn" id="btn-export-words">Export Words</button>
       <button class="btn" id="btn-export-all">Export All</button>
+      <button class="btn" id="btn-validate">Validate</button>
       <button class="btn" id="btn-restore-session">Restore Draft</button>
       <button class="btn" id="btn-hotkeys">Hotkeys</button>
+      <button class="btn" id="btn-help">Help</button>
     </div>
     <div class="grp">
       <button class="btn" id="btn-play">Play/Pause</button>
@@ -57,13 +59,30 @@
         <option value="roll">Roll Trim</option>
         <option value="ripple">Ripple Trim</option>
       </select>
+      <span class="sep"></span>
+      <span>Layer:</span>
+      <select id="layer-mode">
+        <option value="auto">Auto</option>
+        <option value="line">Lines</option>
+        <option value="word">Words</option>
+        <option value="char">Chars</option>
+      </select>
+      <span class="sep"></span>
+      <button class="btn" id="btn-zoom-selection">Zoom Sel</button>
+      <button class="btn" id="btn-fit-song">Fit Song</button>
+      <button class="btn" id="btn-scroll-selection">Scroll Sel</button>
+      <button class="btn" id="btn-goto-selection">Go To Sel</button>
     </div>
 
     <div class="grp">
       <button class="btn" id="btn-select-all">Select All</button>
       <button class="btn" id="btn-deselect">Deselect</button>
       <button class="btn" id="btn-split">Split at Playhead</button>
+      <button class="btn" id="btn-merge-prev">Merge Prev</button>
       <button class="btn" id="btn-merge">Merge Next</button>
+      <button class="btn" id="btn-duplicate">Duplicate</button>
+      <button class="btn" id="btn-add-line">Add Line</button>
+      <button class="btn" id="btn-add-word">Add Word</button>
       <button class="btn" id="btn-delete">Delete</button>
     </div>
 
@@ -115,8 +134,16 @@
 <div id="context-menu" class="ctx hidden">
   <div class="ctx-item" id="ctx-edit">Edit Text</div>
   <div class="ctx-item" id="ctx-split">Split at Playhead</div>
+  <div class="ctx-item" id="ctx-split-cursor">Split By Cursor</div>
+  <div class="ctx-item" id="ctx-merge-prev">Merge With Prev</div>
   <div class="ctx-item" id="ctx-merge-next">Merge With Next</div>
+  <div class="ctx-item" id="ctx-duplicate">Duplicate</div>
+  <div class="ctx-item" id="ctx-add-line">Add New Line</div>
+  <div class="ctx-item" id="ctx-add-word">Add New Word</div>
   <div class="ctx-item" id="ctx-move-playhead">Move to Playhead</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-zoom-selection">Zoom to Selection</div>
+  <div class="ctx-item" id="ctx-scroll-selection">Scroll to Selection</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-delete">Delete</div>
 </div>
@@ -136,12 +163,35 @@
 <div id="hotkeys-modal" class="modal hidden">
   <div class="modal-card hotkeys-card">
     <h3>Горячие клавиши</h3>
-    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Назначения сохраняются локально.</p>
+    <p>Нажми “Set”, затем нажми нужную клавишу или сочетание. Можно очистить отдельную команду. Конфликты подсвечиваются.</p>
+    <div id="hotkeys-conflicts" class="muted" style="margin:0 0 10px 0"></div>
     <div id="hotkeys-list" class="hotkeys-list"></div>
     <div class="modal-actions">
       <button class="btn" id="btn-hotkeys-reset">Reset Default</button>
       <button class="btn pri" id="btn-hotkeys-save">Save</button>
       <button class="btn" id="btn-hotkeys-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="validation-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>Validation / QA</h3>
+    <p>Проверка таймингов, пересечений, конфликтов и структуры перед экспортом.</p>
+    <div id="validation-list" class="hotkeys-list"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-validation-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-modal" class="modal hidden">
+  <div class="modal-card hotkeys-card">
+    <h3>Hotkey Help / Legend</h3>
+    <p>Краткая справка по текущим командам и режимам редактора.</p>
+    <div id="help-list" class="hotkeys-list"></div>
+    <div class="modal-actions">
+      <button class="btn pri" id="btn-help-close">Close</button>
     </div>
   </div>
 </div>
