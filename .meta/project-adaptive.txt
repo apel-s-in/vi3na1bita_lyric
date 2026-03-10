@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-ebae2b781ae457982e2218b76ea7f672f31dd41a.idx
-│   │       ├── pack-ebae2b781ae457982e2218b76ea7f672f31dd41a.pack
-│   │       └── pack-ebae2b781ae457982e2218b76ea7f672f31dd41a.rev
+│   │       ├── pack-90406b9ec4dcb7d1cd0daeb406225acd8cbe922d.idx
+│   │       ├── pack-90406b9ec4dcb7d1cd0daeb406225acd8cbe922d.pack
+│   │       └── pack-90406b9ec4dcb7d1cd0daeb406225acd8cbe922d.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -93,7 +93,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 11:59:35 UTC
+Сгенерировано: 2026-03-10 12:12:45 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -445,6 +445,7 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
         <span class="save-status" id="save-status">Saved</span>
         <button class="btn" id="btn-undo">↩ Undo</button>
         <button class="btn" id="btn-redo">↪ Redo</button>
+        <button class="btn" id="btn-layout-lock" title="Разблокировать/заблокировать настройку интерфейса">🔒</button>
       </div>
       <button class="toolbar-toggle" id="toolbar-compact-btn" title="Compact toolbar">▲</button>
     </div>
