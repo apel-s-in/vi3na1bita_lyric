@@ -528,8 +528,10 @@ Object.assign(App, {
     this._bindSidebarCollapse();
     this._bindPanelCollapse();
     this._bindToolbarCompact();
+    this._bindLayoutLock();
     this._bindToolbarGroupDrag();
     this._restoreLayoutPrefs();
+    this._applyLayoutLockUi();
   },
 
   _bindTimelineResizer(){
@@ -561,15 +563,18 @@ Object.assign(App, {
   },
 
   _bindPanelCollapse(){
-    const setup=(btn,panel,key)=>{
+    const setup=(btn,panel,key,onToggle)=>{
       btn.addEventListener('click',()=>{
         const col=panel.classList.toggle('panel-collapsed');
         btn.textContent=col?'▼':'▲';
         this._saveLayoutPref(key,col);
+        onToggle?.(col);
       });
     };
     setup(this.ui.inspectorCollapseBtn,this.ui.inspectorPanel,'inspectorCollapsed');
-    setup(this.ui.previewCollapseBtn,this.ui.previewPanel,'previewCollapsed');
+    setup(this.ui.previewCollapseBtn,this.ui.previewPanel,'previewCollapsed',col=>{
+      this.ui.previewResizer.style.display=col?'none':'block';
+    });
   },
 
   _bindToolbarCompact(){
@@ -689,6 +694,8 @@ Object.assign(App, {
         this.ui.previewCollapseBtn.textContent='▼';
         this.ui.previewResizer.style.display='none';
       }else{
+        this.ui.previewPanel.classList.remove('panel-collapsed');
+        this.ui.previewCollapseBtn.textContent='▲';
         this.ui.previewResizer.style.display='block';
       }
       const wh=g('workspaceH');
