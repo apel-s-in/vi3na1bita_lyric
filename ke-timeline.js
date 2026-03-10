@@ -5,21 +5,18 @@ Object.assign(App, {
 
   /* ── full render entry point ── */
   fullRender() {
+    // Сбрасываем stale-кеши до рендера
+    this.invalidatePlaybackIndex();
+    this.invalidatePreviewMap('fullRender');
     this.renderRuler();
     this.renderGrid();
     this.drawWaveform();
-    this.renderTimeline();
+    this.renderTimeline(); // внутри вызывает _syncPlayingAfterRender
     this.renderTrackHeaders();
     this.renderPreview();
     this.renderLoopRegion();
     this.renderInspector();
     this.updateModeIndicator();
-    // After DOM rebuild, sync playing class immediately (no flicker)
-    this._syncPlayingAfterRender();
-    // Playback index may be stale after structural change
-    this.invalidatePlaybackIndex();
-    // Preview map stale after structural change
-    this.invalidatePreviewMap('fullRender');
   },
 
   /* ── timeline render ── */
