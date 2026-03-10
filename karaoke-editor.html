@@ -345,10 +345,35 @@
 
 <audio id="audio-player"></audio>
 <div id="loader" class="loader hidden">Processing…</div>
+<!-- FILE: /karaoke-editor.html  (script order only) -->
+
+<!-- Core state — no DOM, no layout -->
 <script src="ke-state.js"></script>
+
+<!-- DOM cache + dynamic registries -->
+<script src="ke-dom.js"></script>
+
+<!-- Audio, waveform, playback, highlights -->
 <script src="ke-audio.js"></script>
+
+<!-- Timeline render, drag, trim -->
 <script src="ke-timeline.js"></script>
+
+<!-- Preview line↔word mapping layer -->
+<script src="ke-preview-map.js"></script>
+
+<!-- Edit ops, inspector, preview orchestration, export, session -->
 <script src="ke-editor.js"></script>
+
+<!-- All layout: collapse, compact, lock, resize, reorder, fullscreen -->
+<script src="ke-layout.js"></script>
+
+<!-- Commands, hotkeys, modals, context menu, high-level init -->
 <script src="ke-ui.js"></script>
+
+<!-- Entry point -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
 </body>
 </html>
