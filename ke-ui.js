@@ -59,11 +59,11 @@ Object.assign(App, {
         if(t!==null){const tr=A.trackById(A.context.trackId);A.applyTrackEdit(tr,'Edit Text',()=>{it.text=t})}
       },
       splitAtCursor(){ A.splitAtCursor(A.context.cursorX) },
-      batchCloseGaps(){ A.batchCloseGapsCtx() },
+      batchCloseGaps(){ A._batchCloseGapsCtx() },
       batchDistribute(){
         const tr=A.activeTrack();
         if(tr&&A.selected.ids.size>1)
-          A.distributeItemsEvenly([...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean));
+          A._distributeItemsEvenly([...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean));
       },
       batchNormalize(){
         const dur=A.num(prompt('Длительность (s):','1.0'),0); if(dur<=0)return;
@@ -169,7 +169,7 @@ Object.assign(App, {
     u.btnRestoreNo.onclick=()=>u.restoreModal.classList.add('hidden');
     u.btnRestoreDelete.onclick=()=>{
       localStorage.removeItem(A._pendingDraftKey||A.DRAFT_KEY);
-      A.removeFromRecent(A._pendingDraftKey);
+      A._removeFromRecent(A._pendingDraftKey||A.DRAFT_KEY);
       u.restoreModal.classList.add('hidden');
     };
 
@@ -266,23 +266,6 @@ Object.assign(App, {
     Object.entries(map).forEach(([key,cmd])=>{
       if(this.ui[key])this.ui[key].onclick=()=>{hide();this.runCommand(cmd)};
     });
-  },
-
-  batchCloseGapsCtx(){
-    const tr=this.activeTrack(); if(!tr||!this.selected.ids.size)return;
-    const items=[...this.selected.ids].map(id=>this.itemById(tr.id,id)).filter(Boolean).sort((a,b)=>a.start-b.start);
-    this.pushHistory('Batch Close Gaps');
-    items.forEach((it,i)=>{if(i>0){it.start=items[i-1].end;it.end=Math.max(it.start+this.MIN_DUR,it.end)}});
-    this.normalizeTrackAfterEdit(tr); this.markDirty(); this.afterEdit();
-  },
-
-  distributeItemsEvenly(items){
-    if(items.length<2)return;
-    const sorted=[...items].sort((a,b)=>a.start-b.start);
-    const step=(sorted[sorted.length-1].end-sorted[0].start)/sorted.length;
-    this.pushHistory('Distribute Evenly');
-    sorted.forEach((it,i)=>{const dur=it.end-it.start;it.start=sorted[0].start+i*step;it.end=it.start+dur});
-    this.markDirty(); this.afterEdit();
   },
 
   /* ── hotkeys ── */
