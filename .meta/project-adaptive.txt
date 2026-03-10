@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-9308eb10d153ae04ad8116def6c6e322faaba773.idx
-│   │       ├── pack-9308eb10d153ae04ad8116def6c6e322faaba773.pack
-│   │       └── pack-9308eb10d153ae04ad8116def6c6e322faaba773.rev
+│   │       ├── pack-95ad9b3704f163a8184f07be1d3104f094f232a2.idx
+│   │       ├── pack-95ad9b3704f163a8184f07be1d3104f094f232a2.pack
+│   │       └── pack-95ad9b3704f163a8184f07be1d3104f094f232a2.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-09 22:36:57 UTC
+Сгенерировано: 2026-03-10 10:36:08 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -132,11 +132,35 @@ html,body{width:100%;height:100%}
 body{font:13px/1.35 "Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--tx);display:flex;flex-direction:column;overflow:hidden}
 
 /* TOOLBAR */
-.toolbar{background:linear-gradient(180deg,#1b1e24,#17191e);border-bottom:1px solid var(--br);display:flex;flex-direction:column}
-.row{display:flex;justify-content:space-between;gap:8px;padding:5px 10px;min-height:38px;border-bottom:1px solid rgba(255,255,255,.04);flex-wrap:wrap}
+.toolbar{background:linear-gradient(180deg,#1b1e24,#17191e);border-bottom:1px solid var(--br);display:flex;flex-direction:column;user-select:none}
+.toolbar-rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:6px;padding:4px 8px;min-height:36px;border-bottom:1px solid rgba(255,255,255,.04);flex-wrap:wrap;position:relative}
 .row:last-child{border-bottom:0}.row2{background:rgba(255,255,255,.02)}
-.grp{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-.sep{width:1px;height:16px;background:var(--br2);margin:0 2px}
+
+/* DRAGGABLE GROUPS */
+.grp{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:2px 4px;border-radius:4px;border:1px solid transparent;cursor:default;transition:border-color .15s,background .15s;position:relative}
+.grp[draggable=true]{cursor:grab}
+.grp[draggable=true]:active{cursor:grabbing}
+.grp.dragging{opacity:.4;border:1px dashed var(--acc)}
+.grp.drag-over{border:1px dashed var(--acc2);background:rgba(30,136,229,.08)}
+.grp-handle{display:flex;align-items:center;padding:0 3px 0 0;color:var(--br2);cursor:grab;font-size:14px;line-height:1;flex-shrink:0}
+.grp-handle:hover{color:var(--mut)}
+.grp-handle::before{content:'⠿';font-size:12px}
+
+/* VERTICAL layout for narrow screens */
+@media(max-width:900px){
+  .row{flex-direction:column;align-items:flex-start;gap:3px}
+  .grp{width:100%;flex-wrap:wrap}
+  .sep{width:100%;height:1px;margin:1px 0}
+}
+
+/* Compact toolbar toggle */
+.toolbar.compact .row{min-height:28px;padding:2px 6px}
+.toolbar.compact .btn{padding:2px 6px;font-size:11px}
+.toolbar-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);z-index:10;opacity:.5;cursor:pointer;font-size:10px;background:none;border:none;color:var(--tx)}
+.toolbar-toggle:hover{opacity:1}
+
+.sep{width:1px;height:16px;background:var(--br2);margin:0 2px;flex-shrink:0}
 
 /* BUTTONS */
 .btn{background:#323742;border:1px solid #4b5362;color:var(--tx);padding:4px 9px;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap;transition:background .1s}
@@ -155,9 +179,14 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .ck{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}
 
 /* WORKSPACE */
-.workspace{display:flex;flex:1;min-height:0;overflow:hidden}
-.timeline-wrap{flex:1;overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.01),rgba(255,255,255,0)),var(--bg)}
+.workspace{display:flex;flex:1;min-height:0;overflow:hidden;flex-direction:column}
+.workspace-main{display:flex;flex:1;min-height:0;overflow:hidden}
+.timeline-wrap{flex:1;overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.01),rgba(255,255,255,0)),var(--bg);min-height:80px}
 .timeline-scroll{position:relative;min-height:100%}
+
+/* TIMELINE HEIGHT RESIZER (bottom of timeline area) */
+.timeline-resizer{height:5px;background:var(--br);cursor:row-resize;flex-shrink:0;z-index:30}
+.timeline-resizer:hover,.timeline-resizer.active{background:var(--acc)}
 
 /* CANVASES */
 #ruler-canvas{position:sticky;top:0;left:0;height:30px;background:#181b20;border-bottom:1px solid var(--br);z-index:60}
@@ -211,13 +240,20 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .selbox{position:absolute;background:var(--sel);border:1px solid var(--acc);z-index:90;pointer-events:none}
 
 /* SIDEBAR */
-.sidebar{width:360px;min-width:260px;max-width:820px;display:flex;flex-direction:column;background:#1a1c21;flex-shrink:0}
-.resizer{width:5px;background:var(--br);cursor:col-resize}
-.resizer:hover,.resizer-h:hover{background:var(--acc)}
-.resizer-h{height:5px;background:var(--br);cursor:row-resize}
-.panel{padding:12px;overflow:auto;flex:1;min-height:130px}
+.sidebar{width:360px;min-width:220px;max-width:860px;display:flex;flex-direction:column;background:#1a1c21;flex-shrink:0;position:relative}
+.sidebar-collapse-btn{position:absolute;left:-14px;top:50%;transform:translateY(-50%);width:14px;height:40px;background:#23262d;border:1px solid var(--br);border-right:none;border-radius:4px 0 0 4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mut);z-index:20}
+.sidebar-collapse-btn:hover{color:var(--tx);background:#2c3040}
+.sidebar.collapsed-sidebar{width:0!important;min-width:0;overflow:hidden}
+.sidebar.collapsed-sidebar .sidebar-collapse-btn{left:-14px}
+
+.resizer{width:5px;background:var(--br);cursor:col-resize;flex-shrink:0;z-index:10}
+.resizer:hover,.resizer.active,.resizer-h:hover,.resizer-h.active{background:var(--acc)}
+.resizer-h{height:5px;background:var(--br);cursor:row-resize;flex-shrink:0}
+.panel{padding:12px;overflow:auto;flex:1;min-height:100px}
 .panel2{background:#23262d}
-.panel h3{margin-bottom:10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);border-bottom:1px solid var(--br);padding-bottom:6px}
+.panel h3{margin-bottom:10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);border-bottom:1px solid var(--br);padding-bottom:6px;display:flex;align-items:center;gap:6px}
+.panel-collapse-btn{margin-left:auto;background:none;border:none;color:var(--mut);cursor:pointer;font-size:11px;padding:0 2px}
+.panel-collapse-btn:hover{color:var(--tx)}
 .muted{color:var(--mut);font-size:13px}
 
 /* INSPECTOR */
@@ -308,6 +344,29 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 
 /* DRAG & DROP */
 .timeline-wrap[style*="outline"]{transition:outline .15s}
+
+/* PANEL COLLAPSED STATE */
+.panel.panel-collapsed{min-height:36px;flex:none}
+.panel.panel-collapsed .panel-body{display:none}
+
+/* TOOLBAR ROW DRAG HIGHLIGHT */
+.row.row-drag-over{background:rgba(30,136,229,.06);outline:1px dashed rgba(30,136,229,.3);outline-offset:-1px}
+
+/* RESIZE HANDLE VISUAL */
+.resizer:hover::after,.timeline-resizer:hover::after{
+  content:'';display:block;width:30px;height:3px;background:var(--acc);border-radius:2px;
+  margin:1px auto 0;
+}
+.resizer:hover::after{width:3px;height:30px;margin:auto 1px;display:block}
+
+/* SMOOTH TRANSITIONS */
+.sidebar{transition:width .15s ease}
+.sidebar.collapsed-sidebar{transition:width .1s ease}
+
+/* FULLSCREEN TIMELINE */
+.workspace.timeline-expanded .workspace-main .sidebar,
+.workspace.timeline-expanded .workspace-main .resizer{display:none}
+.workspace.timeline-expanded .workspace-main .timeline-wrap{flex:1}
 
 //=================================================
 // FILE: /karaoke-editor.html
