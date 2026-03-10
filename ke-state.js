@@ -20,8 +20,8 @@ const App = {
   charDrag:{active:false,itemId:null,trackId:null,charIdx:null,side:null,startX:0,initialStart:0,initialEnd:0},
   context:{trackId:null,itemId:null,cursorX:0},
   loop:{enabled:false,start:null,end:null},
-  hotkeysWaiting:null, keymap:{}, collapsed:{}, ui:{}, commands:{},
-  _dragModeBadge:null, _dragClamped:false, _rippleAffected:new Set(),
+  hotkeysWaiting:null,keymap:{},collapsed:{},ui:{},commands:{},layoutUnlocked:false,
+  _dragModeBadge:null,_dragClamped:false,_rippleAffected:new Set(),
 
   /* ── utils ── */
   activeTrack(){ return this.trackById(this.project.activeTrackId) },
@@ -103,7 +103,8 @@ const App = {
   persistUiPrefs(){
     try{
       const o={sidebarWidth:this.ui.sidebar.style.width,
-               dragMode:this.ui.dragMode.value,layerMode:this.ui.layerMode.value};
+               dragMode:this.ui.dragMode.value,layerMode:this.ui.layerMode.value,
+               layoutUnlocked:this.layoutUnlocked};
       this._uiPrefFields.forEach(f=>{o[f]=this[f]});
       localStorage.setItem(this.UI_KEY,JSON.stringify(o));
     }catch(e){console.warn(e)}
@@ -115,6 +116,7 @@ const App = {
       if(p.sidebarWidth)this.ui.sidebar.style.width=p.sidebarWidth;
       if(p.dragMode)this.ui.dragMode.value=p.dragMode;
       if(p.layerMode)this.ui.layerMode.value=p.layerMode;
+      if(p.layoutUnlocked!==undefined)this.layoutUnlocked=!!p.layoutUnlocked;
       this._syncUiToDOM();
     }catch(e){console.warn(e)}
   },
@@ -259,7 +261,7 @@ const App = {
       sidebarCollapseBtn:g('sidebar-collapse-btn'),
       inspectorCollapseBtn:g('inspector-collapse-btn'),previewCollapseBtn:g('preview-collapse-btn'),
       inspectorBody:g('inspector-body'),previewBody:g('preview-body'),previewPanel:g('preview-panel'),
-      toolbarCompactBtn:g('toolbar-compact-btn'),toolbar:g('toolbar'),toolbarRows:g('toolbar-rows'),
+      toolbarCompactBtn:g('toolbar-compact-btn'),btnLayoutLock:g('btn-layout-lock'),toolbar:g('toolbar'),
     };
   },
 };
