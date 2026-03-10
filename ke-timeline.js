@@ -515,8 +515,10 @@ Object.assign(App, {
     for(let j=sortedItems.length-1;j>=0;j--){
       const o=sortedItems[j];
       if(o.end>boundary+1e-9){
-        const p=o.end-boundary; o.end-=p; o.start=Math.max(0,o.start-p);
-        if(o.end<=o.start)o.end=o.start+this.MIN_DUR;
+        const dur=o.end-o.start;
+        const shift=o.end-boundary;
+        o.start=Math.max(0,o.start-shift);
+        o.end=o.start+dur;
         this._rippleAffected.add(o.id);
       }
       boundary=Math.min(boundary,o.start);
