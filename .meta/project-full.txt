@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-def049eae2f2437e47ca16ff2fe83ed4bd27eb60.idx
-│   │       ├── pack-def049eae2f2437e47ca16ff2fe83ed4bd27eb60.pack
-│   │       └── pack-def049eae2f2437e47ca16ff2fe83ed4bd27eb60.rev
+│   │       ├── pack-d26b96ed28b8a2480deea07afa221fb1f28a5883.idx
+│   │       ├── pack-d26b96ed28b8a2480deea07afa221fb1f28a5883.pack
+│   │       └── pack-d26b96ed28b8a2480deea07afa221fb1f28a5883.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -96,7 +96,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 14:11:18 UTC
+Сгенерировано: 2026-03-10 14:12:06 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -4327,8 +4327,10 @@ Object.assign(App, {
     let active = false, sY = 0, sH = 0;
 
     el.addEventListener('mousedown', e => {
+      const h = this.ui.inspectorPanel.offsetHeight;
+      if (!h) return; // панель скрыта (fullscreen или collapsed) — resize невозможен
       e.preventDefault();
-      active = true; sY = e.clientY; sH = this.ui.inspectorPanel.offsetHeight;
+      active = true; sY = e.clientY; sH = h;
       document.body.style.cursor = 'row-resize';
       el.classList.add('active');
     });
