@@ -1,727 +1,1147 @@
+// FILE: /ke-ui.js  (delta — layout removed)
 'use strict';
-/* ── ke-ui.js: commands, bind, hotkeys, modals, layout, init ── */
+/* ── ke-ui.js: commands, hotkeys, modals, context menu, high-level init ── */
 Object.assign(App, {
 
-  initCommands(){
-    const A=this;
-    this.commands={
-      playPause(){ A.togglePlay() },
-      stop(){ A.audioElement.pause();A.audioElement.currentTime=0;A.syncPlayhead();A.ui.btnPlay.textContent='▶ Play' },
-      zoomIn(){ A.setZoom(A.zoom+10,true) },
-      zoomOut(){ A.setZoom(A.zoom-10,true) },
-      vzoomIn(){ A.setVerticalZoom(A.verticalZoom+.1) },
-      vzoomOut(){ A.setVerticalZoom(A.verticalZoom-.1) },
-      seekLeft(){ A.audioElement.currentTime=Math.max(0,A.audioElement.currentTime-.1);A.syncPlayhead() },
-      seekRight(){ A.audioElement.currentTime=Math.min(A.duration||9999,A.audioElement.currentTime+.1);A.syncPlayhead() },
-      seekLeftBig(){ A.audioElement.currentTime=Math.max(0,A.audioElement.currentTime-1);A.syncPlayhead() },
-      seekRightBig(){ A.audioElement.currentTime=Math.min(A.duration||9999,A.audioElement.currentTime+1);A.syncPlayhead() },
-      nudgeLeft(){ A.nudgeSelected(-.05) },
-      nudgeRight(){ A.nudgeSelected(.05) },
-      stretchLeft(){ A.stretchSelected('left',-.05) },
-      stretchRight(){ A.stretchSelected('right',.05) },
-      stretchGroupLeft(){ A.stretchSelectionEdge('left',-.05) },
-      stretchGroupRight(){ A.stretchSelectionEdge('right',.05) },
-      split(){ A.splitAtPlayhead() },
-      mergeNext(){ A.mergeSelectedWithNext() },
-      mergePrev(){ A.mergeSelectedWithPrev() },
-      duplicate(){ A.duplicateSelected() },
-      deleteSelected(){ A.deleteSelected() },
-      selectAll(){ A.selectAll() },
-      deselect(){ A.clearSelection() },
-      undo(){ A.undo() },
-      redo(){ A.redo() },
-      centerPlayhead(){ A.centerOnPlayhead() },
-      fitSong(){ A.fitSong() },
-      zoomSelection(){ A.zoomToSelection() },
-      scrollSelection(){ A.scrollToSelection() },
-      gotoSelStart(){ A.gotoSelectionStart() },
-      toggleAutoscroll(){ A.autoScroll=!A.autoScroll;A.ui.autoScroll.checked=A.autoScroll },
-      toggleSnap(){ const v=A.snapStep?0:.25;A.snapStep=v;A.ui.snapSelect.value=v },
-      exportActive(){ A.exportTrack(A.activeTrack()) },
-      openHotkeys(){ A.openHotkeysModal() },
-      switchTrack(){ A.switchActiveTrack() },
-      toggleLineVis(){ const tr=A.trackByType('line');if(tr)A.toggleTrackProp(tr.id,'visible') },
-      toggleWordsVis(){ const tr=A.trackByType('words');if(tr)A.toggleTrackProp(tr.id,'visible') },
-      soloActive(){ const tr=A.activeTrack();if(tr)A.toggleTrackProp(tr.id,'solo') },
-      lockActive(){ const tr=A.activeTrack();if(tr)A.toggleTrackProp(tr.id,'locked') },
-      loopToggle(){ if(A.loop.enabled)A.clearLoop();else A.openLoopModal() },
-      addLine(){ A.addNewLine() },
-      addWord(){ A.addNewWord() },
-      validate(){ A.openValidationModal() },
-      help(){ A._openHelpModal() },
-      navPrev(){ A.navigateItem(-1) },
-      navNext(){ A.navigateItem(1) },
-      deleteTrack(){ A.deleteActiveTrack() },
-      exportPreview(){ A.openExportPreview() },
-      editText(){
-        const it=A.itemById(A.context.trackId,A.context.itemId); if(!it)return;
-        const t=prompt('Текст:',it.text);
-        if(t!==null){const tr=A.trackById(A.context.trackId);A.applyTrackEdit(tr,'Edit Text',()=>{it.text=t})}
-      },
-      splitAtCursor(){ A.splitAtCursor(A.context.cursorX) },
-      batchCloseGaps(){ A._batchCloseGapsCtx() },
-      batchDistribute(){
-        const tr=A.activeTrack();
-        if(tr&&A.selected.ids.size>1)
-          A._distributeItemsEvenly([...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean));
-      },
-      batchNormalize(){
-        const dur=A.num(prompt('Длительность (s):','1.0'),0); if(dur<=0)return;
-        const tr=A.activeTrack(); if(!tr)return;
-        A.applyTrackEdit(tr,'Batch Norm',()=>{
-          [...A.selected.ids].forEach(id=>{const it=A.itemById(tr.id,id);if(it)it.end=it.start+dur});
-        });
-      },
-      moveToPlayhead(){
-        const tr=A.activeTrack(); if(!tr||!A.selected.ids.size)return;
-        const items=[...A.selected.ids].map(id=>A.itemById(tr.id,id)).filter(Boolean);
-        if(!items.length)return;
-        const t=A.audioElement.currentTime,minS=Math.min(...items.map(i=>i.start)),delta=t-minS;
-        A.applyTrackEdit(tr,'Move to Playhead',()=>{items.forEach(i=>{i.start+=delta;i.end+=delta})});
-      },
-      selTrack(){
-        const tid=A.context.trackId,tr=A.trackById(tid); if(!tr)return;
-        A.selected.trackId=tid;
-        A.selected.ids=new Set(A.visibleItems(tr,A.ui.layerMode.value).map(i=>i.id));
-        A.renderTimeline(); A.renderInspector();
-      }
-    };
-  },
-
-  runCommand(name){
-    const cmd=this.commands[name];
-    if(cmd)cmd(); else console.warn('Unknown command:',name);
-  },
-
-  /* ── bind ── */
-  bind(){
-    const u=this.ui,A=this;
-    u.audioUpload.onchange=e=>A.loadAudio(e.target.files[0]);
-    u.lineUpload.onchange=e=>A.loadTrackJSON(e.target.files[0],'line');
-    u.wordsUpload.onchange=e=>A.loadTrackJSON(e.target.files[0],'words');
-    u.btnExportActive.onclick=()=>A.runCommand('exportActive');
-    u.btnExportLine.onclick=()=>A.exportTrack(A.trackByType('line'));
-    u.btnExportWords.onclick=()=>A.exportTrack(A.trackByType('words'));
-    u.btnExportAll.onclick=()=>A.exportAll();
-    u.btnExportZip.onclick=()=>A.exportZip();
-    u.btnSaveSession.onclick=()=>A.saveSessionToFile();
-    u.btnLoadSession.onclick=()=>u.sessionUpload.click();
-    u.sessionUpload.onchange=e=>A.loadSessionFromFile(e.target.files[0]);
-    u.btnValidate.onclick=()=>A.runCommand('validate');
-    u.btnRestoreSession.onclick=()=>A.openRecentModal();
-    u.btnRecent.onclick=()=>A.openRecentModal();
-    u.btnHotkeys.onclick=()=>A.runCommand('openHotkeys');
-    u.btnHelp.onclick=()=>A.runCommand('help');
-    u.btnVkbd.onclick=()=>A.openVkbdModal();
-    u.btnVkbdClose.onclick=()=>u.vkbdModal.classList.add('hidden');
-    u.btnHotkeysClose.onclick=()=>A.closeHotkeysModal();
-    u.btnHotkeysSave.onclick=()=>A.saveKeymap();
-    u.btnHotkeysReset.onclick=()=>{A.keymap=A.defaultKeymap();A.renderHotkeysModal()};
-    u.hkSearch.oninput=()=>A.renderHotkeysModal();
-    u.btnValidationClose.onclick=()=>u.validationModal.classList.add('hidden');
-    u.btnValidationExport.onclick=()=>{u.validationModal.classList.add('hidden');A.runCommand('exportActive')};
-    u.btnValidationFix.onclick=()=>A.autoFixOverlaps();
-    u.btnValidationRerun.onclick=()=>A.runCommand('validate');
-    u.btnHelpClose.onclick=()=>u.helpModal.classList.add('hidden');
-    u.btnRenameCancel.onclick=()=>u.renameModal.classList.add('hidden');
-    u.btnRecentClose.onclick=()=>u.recentModal.classList.add('hidden');
-    u.btnRecentClearAll.onclick=()=>{A.clearAllDrafts();u.recentModal.classList.add('hidden')};
-    u.btnLoopCancel.onclick=()=>u.loopModal.classList.add('hidden');
-    u.btnLoopOk.onclick=()=>A.applyLoopFromModal();
-    u.btnPlay.onclick=()=>A.runCommand('playPause');
-    u.btnStop.onclick=()=>A.runCommand('stop');
-    u.btnCenterPlayhead.onclick=()=>A.runCommand('centerPlayhead');
-    u.btnLoop.onclick=()=>A.openLoopModal();
-    u.btnLoopClear.onclick=()=>A.clearLoop();
-    u.btnUndo.onclick=()=>A.runCommand('undo');
-    u.btnRedo.onclick=()=>A.runCommand('redo');
-    u.btnSelectAll.onclick=()=>A.runCommand('selectAll');
-    u.btnDeselect.onclick=()=>A.runCommand('deselect');
-    u.btnSplit.onclick=()=>A.runCommand('split');
-    u.btnMergePrev.onclick=()=>A.runCommand('mergePrev');
-    u.btnMerge.onclick=()=>A.runCommand('mergeNext');
-    u.btnDuplicate.onclick=()=>A.runCommand('duplicate');
-    u.btnAddLine.onclick=()=>A.runCommand('addLine');
-    u.btnAddWord.onclick=()=>A.runCommand('addWord');
-    u.btnDelete.onclick=()=>A.runCommand('deleteSelected');
-    u.btnFitSong.onclick=()=>A.runCommand('fitSong');
-    u.btnZoomSelection.onclick=()=>A.runCommand('zoomSelection');
-    u.btnScrollSelection.onclick=()=>A.runCommand('scrollSelection');
-    u.btnGotoSelection.onclick=()=>A.runCommand('gotoSelStart');
-    u.zoomSlider.oninput=e=>A.setZoom(+e.target.value,true);
-    u.vzoomSlider.oninput=e=>A.setVerticalZoom(+e.target.value/100);
-    u.snapSelect.onchange=e=>{A.snapStep=e.target.value==='items'?'items':+e.target.value};
-    u.autoScroll.onchange=e=>{A.autoScroll=e.target.checked;A.persistUiPrefs()};
-    u.autosaveEnabled.onchange=e=>{A.autosaveEnabled=e.target.checked;A.persistUiPrefs()};
-    u.autosaveInterval.onchange=e=>{A.autosaveIntervalSec=+e.target.value;A.persistUiPrefs();A.restartAutosaveLoop()};
-    u.volumeSlider.oninput=e=>A.setVolume(+e.target.value/100);
-    u.btnMute.onclick=()=>A.toggleMute();
-    u.playbackRate.onchange=e=>{A.playbackRate=+e.target.value;A.audioElement.playbackRate=A.playbackRate};
-    u.btnExportPreviewClose.onclick=()=>u.exportPreviewModal.classList.add('hidden');
-    u.btnExportPreviewCopy.onclick=()=>{
-      navigator.clipboard?.writeText(u.exportPreviewText.value);
-      u.btnExportPreviewCopy.textContent='✓ Copied';
-      setTimeout(()=>{u.btnExportPreviewCopy.textContent='📋 Copy'},1500);
-    };
-    u.btnExportPreviewDownload.onclick=()=>{if(A._exportPreviewTrack)A.doExportTrack(A._exportPreviewTrack)};
-
-    u.btnRestoreYes.onclick=()=>{A.restoreDraftFromStorage(A._pendingDraftKey||A.DRAFT_KEY,true);u.restoreModal.classList.add('hidden')};
-    u.btnRestoreNo.onclick=()=>u.restoreModal.classList.add('hidden');
-    u.btnRestoreDelete.onclick=()=>{
-      localStorage.removeItem(A._pendingDraftKey||A.DRAFT_KEY);
-      A._removeFromRecent(A._pendingDraftKey||A.DRAFT_KEY);
-      u.restoreModal.classList.add('hidden');
-    };
-
-    A.audioElement.addEventListener('timeupdate',()=>{
-      A.syncPlayhead(); A.handleLoopTick();
-      if(A.audioElement.paused){
-        clearTimeout(A._previewDebounce);
-        A._previewDebounce=setTimeout(()=>A.renderPreview(),80);
-      }
-    });
-    A.audioElement.addEventListener('loadedmetadata',()=>{
-      A.duration=A.audioElement.duration||A.duration||0; A.fullRender();
-    });
-
-    u.scrollArea.addEventListener('mousedown',e=>A.handleTimelineMouseDown(e));
-    u.playheadHandle.addEventListener('mousedown',e=>A.startPlayheadDrag(e));
-    document.addEventListener('mousemove',e=>A.handleGlobalMouseMove(e));
-    document.addEventListener('mouseup',()=>A.handleGlobalMouseUp());
-    u.sidebarResizer.addEventListener('mousedown',e=>A.startResize(e,'sidebar'));
-    u.previewResizer.addEventListener('mousedown',e=>A.startResize(e,'preview'));
-    u.scrollArea.addEventListener('contextmenu',e=>A.showContextMenu(e));
-
-    document.addEventListener('click',e=>{
-      if(!e.target.closest('#context-menu'))u.contextMenu.classList.add('hidden');
-      ['hotkeysModal','validationModal','helpModal','renameModal','recentModal','loopModal','exportPreviewModal']
-        .forEach(m=>{if(e.target===u[m])u[m].classList.add('hidden')});
-    });
-
-    A._setupContext();
-    A._setupTouch();
-    document.addEventListener('keydown',e=>A.handleHotkeys(e));
-
-    // drag & drop files onto timeline
-    const dz=u.timelineContainer;
-    ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{
-      e.preventDefault();e.stopPropagation();dz.style.outline='2px dashed var(--acc)';
-    }));
-    ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{
-      e.preventDefault();e.stopPropagation();dz.style.outline='';
-    }));
-    dz.addEventListener('drop',e=>{
-      const files=e.dataTransfer?.files; if(!files||!files.length)return;
-      for(const f of files){
-        if(f.type.startsWith('audio/')){A.loadAudio(f);break}
-        if(f.name.endsWith('.json')){A.loadTrackJSON(f,f.name.toLowerCase().includes('word')?'words':'line');break}
-        if(f.name.endsWith('.kep')){A.loadSessionFromFile(f);break}
-      }
-    });
-
-    window.addEventListener('beforeunload',e=>{if(A.dirty){e.preventDefault();e.returnValue=''}});
-
-    u.timelineContainer.addEventListener('wheel',e=>{
-      if(e.ctrlKey){e.preventDefault();A.setZoom(A.zoom+(e.deltaY<0?10:-10),true)}
-      else if(e.shiftKey){e.preventDefault();A.setVerticalZoom(A.verticalZoom+(e.deltaY<0?.1:-.1))}
-    },{passive:false});
-
-    u.timelineContainer.addEventListener('scroll',()=>{
-      clearTimeout(A._scrollRenderTimer);
-      A._scrollRenderTimer=setTimeout(()=>A.renderTimeline(),60);
-    });
-
-    if(window.ResizeObserver)new ResizeObserver(()=>A.renderRuler()).observe(u.timelineContainer);
-    else window.addEventListener('resize',()=>A.renderRuler());
-  },
-
-  /* ── context menu ── */
-  showContextMenu(e){
-    e.preventDefault();
-    const rect=this.ui.scrollArea.getBoundingClientRect();
-    const px=e.clientX-rect.left+this.ui.timelineContainer.scrollLeft;
-    this.context.cursorX=px/this.zoom;
-    const item=e.target.closest('.track-item');
-    this.context.trackId=item?.dataset.tid||this.project.activeTrackId;
-    this.context.itemId=item?.dataset.id||null;
-    if(item&&!this.selected.ids.has(this.context.itemId))
-      this.selectItem(this.context.trackId,this.context.itemId);
-    const m=this.ui.contextMenu;
-    m.style.left=Math.min(e.clientX,window.innerWidth-220)+'px';
-    m.style.top=Math.min(e.clientY,window.innerHeight-340)+'px';
-    m.classList.remove('hidden');
-  },
-
-  _setupContext(){
-    const hide=()=>this.ui.contextMenu.classList.add('hidden');
-    const map={
-      ctxEdit:'editText', ctxSplit:'split', ctxSplitCursor:'splitAtCursor',
-      ctxMergePrev:'mergePrev', ctxMergeNext:'mergeNext',
-      ctxDuplicate:'duplicate', ctxAddLine:'addLine', ctxAddWord:'addWord',
-      ctxBatchClose:'batchCloseGaps', ctxBatchDist:'batchDistribute', ctxBatchNorm:'batchNormalize',
-      ctxMovePlayhead:'moveToPlayhead', ctxZoomSelection:'zoomSelection',
-      ctxScrollSelection:'scrollSelection', ctxDelete:'deleteSelected',
-      ctxSelTrack:'selTrack', ctxDeleteTrack:'deleteTrack'
-    };
-    Object.entries(map).forEach(([key,cmd])=>{
-      if(this.ui[key])this.ui[key].onclick=()=>{hide();this.runCommand(cmd)};
-    });
-  },
-
-  /* ── hotkeys ── */
-  defaultKeymap(){
-    return{
-      play_pause:{key:'Space',desc:'Play / Pause',ru:'Воспроизведение / Пауза'},
-      stop:{key:'Escape',desc:'Stop',ru:'Стоп'},
-      zoom_in:{key:'+',desc:'Zoom In',ru:'Увеличить масштаб'},
-      zoom_in_num:{key:'NumpadAdd',desc:'Zoom In (numpad)',ru:'Увеличить масштаб (нампад)'},
-      zoom_out:{key:'-',desc:'Zoom Out',ru:'Уменьшить масштаб'},
-      zoom_out_num:{key:'NumpadSubtract',desc:'Zoom Out (numpad)',ru:'Уменьшить масштаб (нампад)'},
-      vzoom_in:{key:'Alt+ArrowUp',desc:'Vertical Zoom In',ru:'Вертикальный масштаб +'},
-      vzoom_out:{key:'Alt+ArrowDown',desc:'Vertical Zoom Out',ru:'Вертикальный масштаб −'},
-      seek_left:{key:'ArrowLeft',desc:'Seek Left 0.1s',ru:'На 0.1с назад'},
-      seek_right:{key:'ArrowRight',desc:'Seek Right 0.1s',ru:'На 0.1с вперёд'},
-      seek_left_big:{key:'Shift+ArrowLeft',desc:'Seek Left 1s',ru:'На 1с назад'},
-      seek_right_big:{key:'Shift+ArrowRight',desc:'Seek Right 1s',ru:'На 1с вперёд'},
-      nudge_left:{key:'Alt+ArrowLeft',desc:'Nudge selected left',ru:'Сдвинуть выбранное влево'},
-      nudge_right:{key:'Alt+ArrowRight',desc:'Nudge selected right',ru:'Сдвинуть выбранное вправо'},
-      stretch_left:{key:'Alt+Shift+ArrowLeft',desc:'Stretch left edge',ru:'Растянуть левую границу'},
-      stretch_right:{key:'Alt+Shift+ArrowRight',desc:'Stretch right edge',ru:'Растянуть правую границу'},
-      split:{key:'S',desc:'Split at playhead',ru:'Разрезать на позиции воспроизведения'},
-      merge_next:{key:'M',desc:'Merge with next',ru:'Объединить со следующим'},
-      merge_prev:{key:'Shift+M',desc:'Merge with previous',ru:'Объединить с предыдущим'},
-      duplicate:{key:'D',desc:'Duplicate selected',ru:'Дублировать выбранное'},
-      delete:{key:'Delete',desc:'Delete selected',ru:'Удалить выбранное'},
-      delete_back:{key:'Backspace',desc:'Delete selected (backspace)',ru:'Удалить выбранное (backspace)'},
-      select_all:{key:'Ctrl+A',desc:'Select all',ru:'Выбрать всё'},
-      deselect:{key:'Ctrl+D',desc:'Deselect',ru:'Снять выделение'},
-      undo:{key:'Ctrl+Z',desc:'Undo',ru:'Отменить'},
-      redo:{key:'Ctrl+Y',desc:'Redo',ru:'Повторить'},
-      redo2:{key:'Ctrl+Shift+Z',desc:'Redo (alt)',ru:'Повторить (альт)'},
-      center_playhead:{key:'C',desc:'Center on playhead',ru:'Центрировать на воспроизведении'},
-      fit_song:{key:'F',desc:'Fit entire song',ru:'Вместить всю песню'},
-      zoom_selection:{key:'Z',desc:'Zoom to selection',ru:'Масштаб к выделению'},
-      scroll_selection:{key:'G',desc:'Scroll to selection',ru:'Прокрутить к выделению'},
-      goto_sel_start:{key:'Home',desc:'Go to selection start',ru:'Перейти к началу выделения'},
-      toggle_autoscroll:{key:'L',desc:'Toggle auto-scroll',ru:'Вкл/выкл авто-прокрутку'},
-      toggle_snap:{key:'N',desc:'Toggle snap',ru:'Вкл/выкл привязку'},
-      save_json:{key:'Ctrl+S',desc:'Export active track',ru:'Экспортировать активную дорожку'},
-      open_hotkeys:{key:'Ctrl+K',desc:'Open hotkeys panel',ru:'Открыть настройки горячих клавиш'},
-      toggle_track:{key:'Tab',desc:'Switch active track',ru:'Переключить активную дорожку'},
-      toggle_line_vis:{key:'1',desc:'Toggle line track visibility',ru:'Видимость линейной дорожки'},
-      toggle_words_vis:{key:'2',desc:'Toggle words track visibility',ru:'Видимость дорожки слов'},
-      solo_active:{key:'3',desc:'Solo active track',ru:'Соло активной дорожки'},
-      lock_active:{key:'4',desc:'Lock/unlock active track',ru:'Заблокировать/разблокировать активную дорожку'},
-      loop_toggle:{key:'Ctrl+L',desc:'Toggle loop',ru:'Включить/выключить петлю'},
-      add_line:{key:'Ctrl+Shift+L',desc:'Add new line at playhead',ru:'Добавить новую строку'},
-      add_word:{key:'Ctrl+Shift+W',desc:'Add new word at playhead',ru:'Добавить новое слово'},
-      validate:{key:'Ctrl+Shift+V',desc:'Open validation panel',ru:'Открыть панель валидации'},
-      help:{key:'?',desc:'Open help',ru:'Открыть справку по клавишам'},
-      stretch_group_left:{key:'Ctrl+Alt+ArrowLeft',desc:'Stretch group left edge',ru:'Растянуть группу (левый край)'},
-      stretch_group_right:{key:'Ctrl+Alt+ArrowRight',desc:'Stretch group right edge',ru:'Растянуть группу (правый край)'},
-      nav_prev:{key:'ArrowUp',desc:'Previous item',ru:'Предыдущий элемент'},
-      nav_next:{key:'ArrowDown',desc:'Next item',ru:'Следующий элемент'},
-      export_preview:{key:'Ctrl+E',desc:'Export preview',ru:'Предпросмотр экспорта'},
-      delete_track:{key:'Ctrl+Shift+Delete',desc:'Delete active track',ru:'Удалить активную дорожку'}
-    };
-  },
-
-  initKeymap(){
-    const def=this.defaultKeymap();
-    try{
-      const saved=JSON.parse(localStorage.getItem(this.KM_KEY)||'{}');
-      this.keymap={};
-      Object.keys(def).forEach(cmd=>{this.keymap[cmd]={...def[cmd],...(saved[cmd]||{})}});
-    }catch{this.keymap=this.defaultKeymap()}
-  },
-
-  saveKeymap(){
-    if(this.hotkeysWaiting)return;
-    const conflicts=this.findHotkeyConflicts();
-    if(conflicts.length&&!confirm(`Конфликты:\n${conflicts.map(c=>c.keys+': '+c.cmds.join(', ')).join('\n')}\nСохранить?`))return;
-    localStorage.setItem(this.KM_KEY,JSON.stringify(this.keymap));
-    this.ui.hotkeysModal.classList.add('hidden');
-  },
-
-  closeHotkeysModal(){ this.hotkeysWaiting=null; this.ui.hotkeysModal.classList.add('hidden') },
-
-  findHotkeyConflicts(){
-    const map={};
-    Object.entries(this.keymap).forEach(([cmd,cfg])=>{
-      if(!cfg.key)return;
-      (map[cfg.key]=map[cfg.key]||[]).push(cmd);
-    });
-    return Object.entries(map).filter(([,v])=>v.length>1).map(([keys,cmds])=>({keys,cmds}));
-  },
-
-  openHotkeysModal(){
-    this.hotkeysWaiting=null; this.renderHotkeysModal();
-    this.ui.hotkeysModal.classList.remove('hidden');
-    setTimeout(()=>this.ui.hkSearch.focus(),80);
-  },
-
-  renderHotkeysModal(){
-    const q=(this.ui.hkSearch.value||'').toLowerCase();
-    const conflicts=this.findHotkeyConflicts();
-    const cSet=new Set(conflicts.flatMap(c=>c.cmds));
-    this.ui.hotkeysConflicts.textContent=conflicts.length
-      ?'⚠ Конфликты: '+conflicts.map(c=>`"${c.keys}" (${c.cmds.join(', ')})`).join('; '):'';
-    const rows=Object.entries(this.keymap).filter(([cmd,cfg])=>
-      !q||cmd.includes(q)||cfg.ru?.toLowerCase().includes(q)||cfg.key?.toLowerCase().includes(q));
-    this.ui.hotkeysList.innerHTML=rows.map(([cmd,cfg])=>{
-      const isW=this.hotkeysWaiting===cmd;
-      return`<div class="hk-row">
-        <span class="hk-name">${cfg.ru||cmd}</span>
-        <div class="hk-key${isW?' waiting':''}${cSet.has(cmd)?' conflict':''}">${isW?'Press key…':(cfg.key||'—')}</div>
-        <button class="btn" data-set="${cmd}">Set</button>
-        <button class="btn" data-clear="${cmd}">Clear</button>
-        <span class="hk-desc">${cfg.desc||''}</span>
-      </div>`;
-    }).join('');
-    this.ui.hotkeysList.querySelectorAll('[data-set]').forEach(b=>{
-      b.onclick=()=>{this.hotkeysWaiting=b.dataset.set;this.renderHotkeysModal()};
-    });
-    this.ui.hotkeysList.querySelectorAll('[data-clear]').forEach(b=>{
-      b.onclick=()=>{if(this.keymap[b.dataset.clear])this.keymap[b.dataset.clear].key='';this.hotkeysWaiting=null;this.renderHotkeysModal()};
-    });
-  },
-
-  captureHotkeyInput(e){
-    if(!this.hotkeysWaiting)return false;
-    e.preventDefault(); e.stopPropagation();
-    if(e.key==='Escape'){this.hotkeysWaiting=null;this.renderHotkeysModal();return true}
-    const parts=[];
-    if(e.ctrlKey)parts.push('Ctrl'); if(e.altKey)parts.push('Alt'); if(e.shiftKey)parts.push('Shift');
-    const k=e.code==='Space'?'Space':e.key;
-    if(!['Control','Alt','Shift','Meta'].includes(k))parts.push(k);
-    const combo=parts.join('+');
-    if(combo)this.keymap[this.hotkeysWaiting].key=combo;
-    this.hotkeysWaiting=null; this.renderHotkeysModal(); return true;
-  },
-
-  matchHotkey(cmd,e){
-    const cfg=this.keymap[cmd]; if(!cfg||!cfg.key)return false;
-    const parts=cfg.key.split('+');
-    const needCtrl=parts.includes('Ctrl'),needAlt=parts.includes('Alt'),needShift=parts.includes('Shift');
-    const kp=parts.filter(p=>!['Ctrl','Alt','Shift'].includes(p))[0]||'';
-    return e.ctrlKey===needCtrl&&e.altKey===needAlt&&e.shiftKey===needShift&&(e.key===kp||e.code===kp);
-  },
-
-  _hotkeyCommandMap:Object.freeze({
-    play_pause:'playPause', stop:'stop',
-    zoom_in:'zoomIn', zoom_in_num:'zoomIn', zoom_out:'zoomOut', zoom_out_num:'zoomOut',
-    vzoom_in:'vzoomIn', vzoom_out:'vzoomOut',
-    seek_left:'seekLeft', seek_right:'seekRight',
-    seek_left_big:'seekLeftBig', seek_right_big:'seekRightBig',
-    nudge_left:'nudgeLeft', nudge_right:'nudgeRight',
-    stretch_left:'stretchLeft', stretch_right:'stretchRight',
-    split:'split', merge_next:'mergeNext', merge_prev:'mergePrev',
-    duplicate:'duplicate', delete:'deleteSelected', delete_back:'deleteSelected',
-    select_all:'selectAll', deselect:'deselect',
-    undo:'undo', redo:'redo', redo2:'redo',
-    center_playhead:'centerPlayhead', fit_song:'fitSong',
-    zoom_selection:'zoomSelection', scroll_selection:'scrollSelection', goto_sel_start:'gotoSelStart',
-    toggle_autoscroll:'toggleAutoscroll', toggle_snap:'toggleSnap',
-    save_json:'exportActive', open_hotkeys:'openHotkeys', toggle_track:'switchTrack',
-    toggle_line_vis:'toggleLineVis', toggle_words_vis:'toggleWordsVis',
-    solo_active:'soloActive', lock_active:'lockActive',
-    loop_toggle:'loopToggle', add_line:'addLine', add_word:'addWord',
-    validate:'validate', help:'help',
-    stretch_group_left:'stretchGroupLeft', stretch_group_right:'stretchGroupRight',
-    nav_prev:'navPrev', nav_next:'navNext',
-    export_preview:'exportPreview', delete_track:'deleteTrack'
-  }),
-
-  handleHotkeys(e){
-    if(this.hotkeysWaiting){this.captureHotkeyInput(e);return}
-    const tag=e.target.tagName;
-    const isInput=tag==='INPUT'||tag==='TEXTAREA'||e.target.isContentEditable;
-    const allowInInput=['undo','redo','redo2','save_json','open_hotkeys','select_all'];
-    if(isInput&&!allowInInput.some(cmd=>this.matchHotkey(cmd,e)))return;
-    for(const [hk,cmd] of Object.entries(this._hotkeyCommandMap)){
-      if(this.matchHotkey(hk,e)){e.preventDefault();this.runCommand(cmd);return}
-    }
-  },
-
-  /* ── touch ── */
-  _setupTouch(){
-    const tc=this.ui.timelineContainer,sa=this.ui.scrollArea;
-    let ts=null;
-    sa.addEventListener('touchstart',e=>{
-      if(e.touches.length===1){
-        ts={type:'seek',startX:e.touches[0].clientX,startScroll:tc.scrollLeft};
-      }else if(e.touches.length===2){
-        const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-        ts={type:'pinch',startDist:d,startZoom:this.zoom}; e.preventDefault();
-      }
-    },{passive:false});
-    sa.addEventListener('touchmove',e=>{
-      if(!ts)return;
-      if(ts.type==='seek'&&e.touches.length===1){tc.scrollLeft=ts.startScroll-(e.touches[0].clientX-ts.startX)}
-      else if(ts.type==='pinch'&&e.touches.length===2){
-        e.preventDefault();
-        const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-        this.setZoom(Math.round(ts.startZoom*(d/ts.startDist)),false);
-      }
-    },{passive:false});
-    sa.addEventListener('touchend',()=>{ts=null});
-    let lastTap=0;
-    sa.addEventListener('touchend',e=>{
-      if(e.changedTouches.length!==1)return;
-      const now=Date.now(); if(now-lastTap<300)this.togglePlay(); lastTap=now;
-    });
-  },
-
-  /* ── modals ── */
-  openVkbdModal(){
-    if(this._vkbdKeyHandler)document.removeEventListener('keydown',this._vkbdKeyHandler);
-    const km=this.keymap,rev={};
-    Object.entries(km).forEach(([cmd,cfg])=>{if(cfg.key)rev[cfg.key]=(rev[cfg.key]||[]).concat(cmd)});
-    const rows=[
-      ['Escape','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'],
-      ['`','1','2','3','4','5','6','7','8','9','0','-','=','Backspace'],
-      ['Tab','q','Q','w','W','e','r','t','y','u','i','o','p','[',']','\\'],
-      ['CapsLock','a','A','s','S','d','D','f','F','g','G','h','j','k','l',';',"'",'Enter'],
-      ['Shift','z','Z','x','c','C','v','V','b','n','m',',','.','/','Shift'],
-      ['Ctrl','Alt','Space','Alt','Ctrl']
-    ];
-    const getCmd=k=>{
-      for(const c of[k,k.toUpperCase(),k.toLowerCase()]){if(rev[c])return rev[c].map(cmd=>km[cmd]?.ru||cmd).join(' / ')}
-      return null;
-    };
-    this.ui.vkbdDisplay.innerHTML=rows.map(row=>'<div style="display:flex;gap:3px;margin-bottom:3px">'+
-      row.map(k=>{
-        const cmd=getCmd(k);
-        const bg=cmd?'background:#1e3a2e;border-color:#43a047':'background:#1b1f27;border-color:#465063';
-        return`<div title="${cmd||k}" style="${bg};border:1px solid;border-radius:4px;padding:3px 5px;min-width:32px;text-align:center;font-size:10px;cursor:default">
-          <div style="font-weight:700;font-size:11px">${k.length>4?k.slice(0,4):k}</div>
-          ${cmd?`<div style="font-size:9px;color:#7bd882;overflow:hidden;max-width:56px;text-overflow:ellipsis;white-space:nowrap">${cmd}</div>`:''}
-        </div>`;
-      }).join('')+'</div>').join('');
-    this.ui.vkbdHint.textContent='';
-    this._vkbdKeyHandler=ev=>{
-      const found=Object.entries(km).find(([,c])=>c.key&&(c.key===ev.key||c.key.endsWith('+'+ev.key)));
-      this.ui.vkbdHint.textContent=found?`${ev.key} → ${found[1].ru||found[0]}`:`${ev.key} — не назначено`;
-    };
-    document.addEventListener('keydown',this._vkbdKeyHandler);
-    this.ui.btnVkbdClose.onclick=()=>{
-      document.removeEventListener('keydown',this._vkbdKeyHandler);
-      this.ui.vkbdModal.classList.add('hidden');
-    };
-    this.ui.vkbdModal.classList.remove('hidden');
-  },
-
-  _openHelpModal(){
-    this.ui.helpList.innerHTML=Object.entries(this.keymap).map(([,cfg])=>`
-      <div class="hk-row">
-        <span class="hk-name">${cfg.ru||cfg.desc}</span>
-        <div class="hk-key">${cfg.key||'—'}</div>
-        <span></span><span></span>
-        <span class="hk-desc">${cfg.desc}</span>
-      </div>`).join('');
-    this.ui.helpModal.classList.remove('hidden');
-  },
-
-  /* ── flexible layout ── */
-  initFlexLayout(){
-    this._bindTimelineResizer();
-    this._bindSidebarCollapse();
-    this._bindPanelCollapse();
-    this._bindToolbarCompact();
-    this._bindLayoutLock();
-    this._bindToolbarGroupDrag();
-    this._restoreLayoutPrefs();
-    this._applyLayoutLockUi();
-  },
-
-  _bindTimelineResizer(){
-    const el=this.ui.timelineResizer,wm=this.ui.workspaceMain;
-    let sY=0,sH=0,act=false;
-    el.addEventListener('mousedown',e=>{
-      e.preventDefault();act=true;sY=e.clientY;sH=wm.offsetHeight;
-      document.body.style.cursor='row-resize';el.classList.add('active');
-    });
-    document.addEventListener('mousemove',e=>{
-      if(!act)return;
-      const h=Math.max(160,Math.min(window.innerHeight-60,sH+(e.clientY-sY)));
-      wm.style.flex='none';wm.style.height=h+'px';
-      this.renderRuler();this._saveLayoutPref('workspaceH',h);
-    });
-    document.addEventListener('mouseup',()=>{
-      if(act){act=false;document.body.style.cursor='';el.classList.remove('active')}
-    });
-  },
-
-  _bindSidebarCollapse(){
-    const btn=this.ui.sidebarCollapseBtn,sb=this.ui.sidebar;
-    btn.addEventListener('click',()=>{
-      const col=sb.classList.toggle('collapsed-sidebar');
-      btn.textContent=col?'▶':'◀';
-      this._saveLayoutPref('sidebarCollapsed',col);
-      setTimeout(()=>this.renderRuler(),160);
-    });
-  },
-
-  _bindPanelCollapse(){
-    const setup=(btn,panel,key,onToggle)=>{
-      btn.addEventListener('click',()=>{
-        const col=panel.classList.toggle('panel-collapsed');
-        btn.textContent=col?'▼':'▲';
-        this._saveLayoutPref(key,col);
-        onToggle?.(col);
-      });
-    };
-    setup(this.ui.inspectorCollapseBtn,this.ui.inspectorPanel,'inspectorCollapsed');
-    setup(this.ui.previewCollapseBtn,this.ui.previewPanel,'previewCollapsed',col=>{
-      this.ui.previewResizer.style.display=col?'none':'block';
-    });
-  },
-
-  _bindToolbarCompact(){
-    const btn=this.ui.toolbarCompactBtn,tb=this.ui.toolbar;
-    btn.addEventListener('click',()=>{
-      const c=tb.classList.toggle('compact');
-      btn.textContent=c?'▼':'▲';
-      this._saveLayoutPref('toolbarCompact',c);
-    });
-  },
-
-  _bindLayoutLock(){
-    this.ui.btnLayoutLock?.addEventListener('click',()=>{
-      this.layoutUnlocked=!this.layoutUnlocked;
-      this.persistUiPrefs();
-      this._applyLayoutLockUi();
-    });
-  },
-
-  _applyLayoutLockUi(){
-    document.body.classList.toggle('layout-locked',!this.layoutUnlocked);
-    if(this.ui.btnLayoutLock){
-      this.ui.btnLayoutLock.textContent=this.layoutUnlocked?'🔓':'🔒';
-      this.ui.btnLayoutLock.title=this.layoutUnlocked?'Интерфейс разблокирован: можно настраивать и двигать':'Интерфейс заблокирован: настройка и перетаскивание отключены';
-    }
-    document.querySelectorAll('.grp[data-grp]').forEach(grp=>{
-      grp.draggable=!!this.layoutUnlocked;
-    });
-  },
-
-  _bindToolbarGroupDrag(){
-    document.querySelectorAll('.row').forEach(row=>this._setupRowDragDrop(row));
-  },
-
-  _setupRowDragDrop(row){
-    let dragEl=null,ph=null;
-    row.addEventListener('dragstart',e=>{
-      if(!this.layoutUnlocked){e.preventDefault();return}
-      const handle=e.target.closest('.grp-handle');
-      const grp=handle?.closest('.grp[draggable]');
-      if(!grp){e.preventDefault();return}
-      dragEl=grp;
-      dragEl.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move';
-      e.dataTransfer.setData('text/plain',grp.id);
-      ph=document.createElement('div');
-      ph.style.cssText=`width:${grp.offsetWidth}px;height:${grp.offsetHeight}px;border:1px dashed var(--br2);border-radius:4px;flex-shrink:0`;
-      setTimeout(()=>grp.after(ph),0);
-    });
-    row.addEventListener('dragover',e=>{
-      if(!this.layoutUnlocked||!dragEl||!ph)return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect='move';
-      const over=e.target.closest('.grp[draggable]');
-      if(!over||over===dragEl)return;
-      const r=over.getBoundingClientRect();
-      e.clientX<r.left+r.width/2?over.before(ph):over.after(ph);
-    });
-    row.addEventListener('drop',e=>{
-      if(!this.layoutUnlocked||!dragEl||!ph)return;
-      e.preventDefault();
-      ph.replaceWith(dragEl);
-      dragEl.classList.remove('dragging');
-      dragEl=null;
-      ph=null;
-      this._saveToolbarOrder();
-    });
-    row.addEventListener('dragend',()=>{
-      dragEl?.classList.remove('dragging');
-      ph?.remove();
-      dragEl=null;
-      ph=null;
-    });
-    row.addEventListener('dragenter',e=>{if(this.layoutUnlocked&&e.target===row)row.classList.add('row-drag-over')});
-    row.addEventListener('dragleave',e=>{if(e.target===row)row.classList.remove('row-drag-over')});
-    ['drop','dragend'].forEach(ev=>row.addEventListener(ev,()=>row.classList.remove('row-drag-over')));
-  },
-
-  _saveToolbarOrder(){
-    const order={};
-    document.querySelectorAll('.row').forEach(row=>{
-      order[row.id||row.dataset.row]=[...row.querySelectorAll('.grp[data-grp]')].map(g=>g.dataset.grp);
-    });
-    this._saveLayoutPref('toolbarOrder',order);
-  },
-
-  _restoreToolbarOrder(order){
-    if(!order)return;
-    Object.entries(order).forEach(([rowId,grpIds])=>{
-      const row=document.getElementById(rowId)||document.querySelector(`[data-row="${rowId}"]`);
-      if(!row)return;
-      grpIds.forEach(gId=>{
-        const g=document.querySelector(`[data-grp="${gId}"]`);
-        if(g)row.appendChild(g);
-      });
-    });
-  },
-
-  _saveLayoutPref(key,val){
-    try{
-      const p=JSON.parse(localStorage.getItem(this.UI_KEY)||'{}');
-      p['layout_'+key]=val;
-      localStorage.setItem(this.UI_KEY,JSON.stringify(p));
-    }catch(e){console.warn('layout pref save:',e)}
-  },
-
-  _restoreLayoutPrefs(){
-    try{
-      const p=JSON.parse(localStorage.getItem(this.UI_KEY)||'{}');
-      const g=k=>p['layout_'+k];
-      if(g('toolbarCompact')){this.ui.toolbar.classList.add('compact');this.ui.toolbarCompactBtn.textContent='▼'}
-      if(g('toolbarOrder'))this._restoreToolbarOrder(g('toolbarOrder'));
-      if(g('sidebarCollapsed')){this.ui.sidebar.classList.add('collapsed-sidebar');this.ui.sidebarCollapseBtn.textContent='▶'}
-      if(g('inspectorCollapsed')){this.ui.inspectorPanel.classList.add('panel-collapsed');this.ui.inspectorCollapseBtn.textContent='▼'}
-      if(g('previewCollapsed')){
-        this.ui.previewPanel.classList.add('panel-collapsed');
-        this.ui.previewCollapseBtn.textContent='▼';
-        this.ui.previewResizer.style.display='none';
-      }else{
-        this.ui.previewPanel.classList.remove('panel-collapsed');
-        this.ui.previewCollapseBtn.textContent='▲';
-        this.ui.previewResizer.style.display='block';
-      }
-      const wh=g('workspaceH');
-      if(wh){this.ui.workspaceMain.style.flex='none';this.ui.workspaceMain.style.height=wh+'px'}
-    }catch(e){console.warn('layout restore:',e)}
-  },
-
-  /* ── init ── */
-  init(){
+  /* ═══════════════════════════════════════════
+     INIT ENTRY POINT
+  ═══════════════════════════════════════════ */
+  init() {
+    // 1. Static DOM cache (ke-dom.js)
     this.cache();
-    this.audioElement=this.ui.audioPlayer;
-    this.initCommands();
-    this.initKeymap();
+
+    // 2. Audio element setup
+    this.audioElement = this.ui.audioPlayer;
+    this.audioElement.addEventListener('ended', () => {
+      this._stopRaf();
+      this.ui.btnPlay.textContent = '▶';
+    });
+
+    // 3. Layout (ke-layout.js)
+    this.initLayout();
+
+    // 4. Restore non-layout UI prefs (ke-state.js)
     this.restoreUiPrefs();
-    this.bind();
-    this.applyVol();
-    this.updateZoomReadout();
-    this.updateVZoomReadout();
-    this.updateVolumeReadout();
-    this.updateSaveStatus('Saved',false);
-    this.pushHistory('Initial');
-    this.checkDraftOnLaunch();
-    this.startAutosaveLoop();
-    this.initFlexLayout();
+
+    // 5. Timeline interaction
+    this.initPlayheadDrag();
+    this.initDrag();
+    this.initMarquee();
+
+    // 6. Commands registry
+    this._buildCommands();
+
+    // 7. Keymap
+    this._loadKeymap();
+    this._bindHotkeys();
+
+    // 8. High-level event bindings
+    this._bindFileInputs();
+    this._bindTransport();
+    this._bindZoom();
+    this._bindVolume();
+    this._bindModeSelectors();
+    this._bindTrackEvents();
+    this._bindContextMenu();
+    this._bindModals();
+    this._bindAutosave();
+
+    // 9. Initial render
+    this.pushHistory('init');
     this.fullRender();
+
+    // 10. Check for autosave restore
+    this._checkAutosaveRestore();
+  },
+
+  /* ═══════════════════════════════════════════
+     COMMANDS REGISTRY
+  ═══════════════════════════════════════════ */
+  _buildCommands() {
+    this.commands = {
+      play:             { label: 'Play / Pause',         fn: () => this.togglePlay() },
+      stop:             { label: 'Stop',                 fn: () => this.stop() },
+      loop:             { label: 'Toggle loop',          fn: () => this._cmdLoop() },
+      loopClear:        { label: 'Clear loop',           fn: () => this.clearLoop() },
+      undo:             { label: 'Undo',                 fn: () => this.undo() },
+      redo:             { label: 'Redo',                 fn: () => this.redo() },
+      selectAll:        { label: 'Select all',           fn: () => this.selectAll() },
+      deselect:         { label: 'Deselect',             fn: () => this.clearSelection() },
+      split:            { label: 'Split at playhead',    fn: () => this._cmdSplit() },
+      mergePrev:        { label: 'Merge with previous',  fn: () => this._cmdMergePrev() },
+      mergeNext:        { label: 'Merge with next',      fn: () => this._cmdMergeNext() },
+      duplicate:        { label: 'Duplicate',            fn: () => this._cmdDuplicate() },
+      delete:           { label: 'Delete',               fn: () => this._cmdDelete() },
+      addLine:          { label: 'Add line at playhead', fn: () => this._cmdAddLine() },
+      addWord:          { label: 'Add word at playhead', fn: () => this._cmdAddWord() },
+      fitSong:          { label: 'Fit song',             fn: () => this.fitSong() },
+      zoomIn:           { label: 'Zoom in',              fn: () => this.applyZoom(this.zoom * 1.25) },
+      zoomOut:          { label: 'Zoom out',             fn: () => this.applyZoom(this.zoom / 1.25) },
+      zoomSelection:    { label: 'Zoom to selection',    fn: () => this.zoomToSelection() },
+      scrollSelection:  { label: 'Scroll to selection',  fn: () => this.scrollToSelection() },
+      gotoSelection:    { label: 'Go to selection start',fn: () => this._cmdGotoSelection() },
+      centerPlayhead:   { label: 'Center playhead',      fn: () => this._cmdCenterPlayhead() },
+      exportActive:     { label: 'Export active track',  fn: () => this.exportActiveTrack() },
+      exportAll:        { label: 'Export all tracks',    fn: () => this.exportAllTracks() },
+      saveSession:      { label: 'Save session',         fn: () => this._cmdSaveSession() },
+      loadSession:      { label: 'Load session',         fn: () => this.ui.sessionUpload.click() },
+      validate:         { label: 'Validate',             fn: () => this._cmdValidate() },
+      toggleFullscreen: { label: 'Toggle fullscreen timeline',
+                                                         fn: () => this.toggleTimelineFullscreen() },
+      mute:             { label: 'Toggle mute',          fn: () => this._cmdMute() },
+      seekBack:         { label: 'Seek back 5s',         fn: () => this.seekTo(this.audioElement.currentTime - 5) },
+      seekFwd:          { label: 'Seek forward 5s',      fn: () => this.seekTo(this.audioElement.currentTime + 5) },
+      seekStart:        { label: 'Seek to start',        fn: () => this.seekTo(0) },
+      seekEnd:          { label: 'Seek to end',          fn: () => this.seekTo(this.duration) },
+      frameBack:        { label: 'Seek back 0.1s',       fn: () => this.seekTo(this.audioElement.currentTime - 0.1) },
+      frameFwd:         { label: 'Seek forward 0.1s',    fn: () => this.seekTo(this.audioElement.currentTime + 0.1) },
+    };
+  },
+
+  /* ═══════════════════════════════════════════
+     COMMAND IMPLEMENTATIONS
+  ═══════════════════════════════════════════ */
+  _cmdSplit() {
+    const { trackId, ids } = this.selected;
+    if (!trackId || !ids.size) return;
+    ids.forEach(id => this.splitItem(trackId, id));
+  },
+
+  _cmdMergePrev() {
+    const { trackId, ids } = this.selected;
+    if (!trackId || ids.size !== 1) return;
+    this.mergeWithPrev(trackId, [...ids][0]);
+  },
+
+  _cmdMergeNext() {
+    const { trackId, ids } = this.selected;
+    if (!trackId || ids.size !== 1) return;
+    this.mergeWithNext(trackId, [...ids][0]);
+  },
+
+  _cmdDuplicate() {
+    const { trackId, ids } = this.selected;
+    if (!trackId || !ids.size) return;
+    const tr = this.trackById(trackId);
+    if (!tr || tr.locked) return;
+    this.applyTrackEdit(tr, 'duplicate', () => {
+      const newIds = new Set();
+      [...ids].forEach(id => {
+        const item = this.itemById(trackId, id);
+        if (!item) return;
+        const clone = JSON.parse(JSON.stringify(item));
+        clone.id    = this.uid();
+        const dur   = item.end - item.start;
+        clone.start = item.end;
+        clone.end   = item.end + dur;
+        tr.items.push(clone);
+        newIds.add(clone.id);
+      });
+      this.selected = { trackId, ids: newIds };
+      this.invalidatePlaybackIndex();
+    });
+  },
+
+  _cmdDelete() {
+    const { trackId, ids } = this.selected;
+    if (!trackId || !ids.size) return;
+    const tr = this.trackById(trackId);
+    if (!tr || tr.locked) return;
+    this.applyTrackEdit(tr, 'delete', () => {
+      tr.items = tr.items.filter(i => !ids.has(i.id));
+      this.selected = { trackId, ids: new Set() };
+      this.invalidatePreviewMap('delete');
+      this.invalidatePlaybackIndex();
+    });
+  },
+
+  _cmdAddLine() {
+    const tr = this.activeTrack();
+    if (!tr || tr.locked) return;
+    const t = this.audioElement.currentTime;
+    this.applyTrackEdit(tr, 'add line', () => {
+      const item = { id: this.uid(), kind: 'line', start: t, end: t + 2, text: '' };
+      tr.items.push(item);
+      this.selected = { trackId: tr.id, ids: new Set([item.id]) };
+      this.invalidatePreviewMap('add-line');
+      this.invalidatePlaybackIndex();
+    });
+  },
+
+  _cmdAddWord() {
+    const tr = this.activeTrack();
+    if (!tr || tr.locked) return;
+    if (tr.type !== 'words') return;
+    const t = this.audioElement.currentTime;
+    this.applyTrackEdit(tr, 'add word', () => {
+      // Find enclosing line
+      const line = tr.items.find(i =>
+        i.kind === 'line' && i.start <= t && i.end >= t
+      ) || null;
+      const item = {
+        id:     this.uid(),
+        kind:   'word',
+        start:  t,
+        end:    t + 0.5,
+        text:   '',
+        lineId: line ? line.id : null,
+      };
+      tr.items.push(item);
+      this.selected = { trackId: tr.id, ids: new Set([item.id]) };
+      this.invalidatePreviewMap('add-word');
+      this.invalidatePlaybackIndex();
+    });
+  },
+
+  _cmdLoop() {
+    if (this.loop.enabled) {
+      this.clearLoop();
+      return;
+    }
+    const b = this.getSelectionBounds();
+    if (b) {
+      this.setLoop(b.minStart, b.maxEnd);
+    } else {
+      // Default: loop from current position + 5s
+      const t = this.audioElement.currentTime;
+      this.setLoop(t, Math.min(this.duration, t + 5));
+    }
+  },
+
+  _cmdMute() {
+    this.muted = !this.muted;
+    this.applyVol();
+    this.updateVolumeReadout();
+    this.ui.btnMute?.classList.toggle('active', this.muted);
+    this.persistUiPrefs();
+  },
+
+  _cmdCenterPlayhead() {
+    const sc  = this.ui.timelineContainer;
+    const px  = this.audioElement.currentTime * this.zoom;
+    sc.scrollLeft = Math.max(0, px - sc.clientWidth / 2);
+  },
+
+  _cmdGotoSelection() {
+    const b = this.getSelectionBounds();
+    if (!b) return;
+    this.seekTo(b.minStart);
+    const sc = this.ui.timelineContainer;
+    sc.scrollLeft = Math.max(0, b.minStart * this.zoom - 40);
+  },
+
+  _cmdSaveSession() {
+    const snap = {
+      ts:      Date.now(),
+      version: 2,
+      audio:   this.audioFileName,
+      project: this.project,
+    };
+    this.downloadBlob(
+      new Blob([JSON.stringify(snap, null, 2)], { type: 'application/json' }),
+      `${this.audioFileName}_session.json`
+    );
+    this.markDirty(false);
+    this._addRecentEntry(snap);
+  },
+
+  _cmdValidate() {
+    const issues = this._runValidation();
+    this._showValidationModal(issues);
+  },
+
+  /* ═══════════════════════════════════════════
+     KEYMAP
+  ═══════════════════════════════════════════ */
+  _defaultKeymap() {
+    return {
+      play:            'Space',
+      stop:            'Escape',
+      undo:            'ctrl+z',
+      redo:            'ctrl+shift+z',
+      selectAll:       'ctrl+a',
+      deselect:        'ctrl+d',
+      split:           's',
+      mergePrev:       'ctrl+ArrowLeft',
+      mergeNext:       'ctrl+ArrowRight',
+      duplicate:       'ctrl+shift+d',
+      delete:          'Delete',
+      addLine:         'ctrl+l',
+      addWord:         'ctrl+w',
+      fitSong:         'f',
+      zoomIn:          '=',
+      zoomOut:         '-',
+      zoomSelection:   'shift+z',
+      scrollSelection: 'shift+s',
+      gotoSelection:   'g',
+      centerPlayhead:  'c',
+      seekBack:        'ArrowLeft',
+      seekFwd:         'ArrowRight',
+      seekStart:       'Home',
+      seekEnd:         'End',
+      frameBack:       'shift+ArrowLeft',
+      frameFwd:        'shift+ArrowRight',
+      loop:            'l',
+      loopClear:       'shift+l',
+      mute:            'm',
+      exportActive:    'ctrl+e',
+      saveSession:     'ctrl+shift+s',
+      validate:        'ctrl+shift+v',
+      toggleFullscreen:'ctrl+shift+f',
+    };
+  },
+
+  _loadKeymap() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.KM_KEY) || 'null');
+      this.keymap = Object.assign({}, this._defaultKeymap(), saved || {});
+    } catch (e) {
+      this.keymap = this._defaultKeymap();
+    }
+  },
+
+  _saveKeymap() {
+    try {
+      localStorage.setItem(this.KM_KEY, JSON.stringify(this.keymap));
+    } catch (e) { console.warn(e); }
+  },
+
+  _normalizeKeyStr(e) {
+    const parts = [];
+    if (e.ctrlKey  || e.metaKey)  parts.push('ctrl');
+    if (e.altKey)                  parts.push('alt');
+    if (e.shiftKey)                parts.push('shift');
+    const k = e.key === ' ' ? 'Space' : e.key;
+    parts.push(k);
+    return parts.join('+');
+  },
+
+  _bindHotkeys() {
+    document.addEventListener('keydown', e => {
+      // Skip when editing text inputs
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (document.activeElement?.isContentEditable) return;
+
+      // Hotkeys-waiting (remapping mode)
+      if (this.hotkeysWaiting) {
+        e.preventDefault();
+        const key = this._normalizeKeyStr(e);
+        this.keymap[this.hotkeysWaiting] = key;
+        this.hotkeysWaiting = null;
+        this._saveKeymap();
+        this._renderHotkeysModal();
+        return;
+      }
+
+      const key = this._normalizeKeyStr(e);
+      for (const [cmdId, binding] of Object.entries(this.keymap)) {
+        if (binding === key) {
+          const cmd = this.commands[cmdId];
+          if (cmd) {
+            e.preventDefault();
+            cmd.fn();
+            return;
+          }
+        }
+      }
+    });
+  },
+
+  /* ═══════════════════════════════════════════
+     FILE INPUT BINDINGS
+  ═══════════════════════════════════════════ */
+  _bindFileInputs() {
+    this.ui.audioUpload.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (f) this.loadAudio(f);
+      e.target.value = '';
+    });
+
+    this.ui.lineUpload.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      this._readJSON(f, data => this._importLineTrack(data, f.name));
+      e.target.value = '';
+    });
+
+    this.ui.wordsUpload.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      this._readJSON(f, data => this._importWordsTrack(data, f.name));
+      e.target.value = '';
+    });
+
+    this.ui.sessionUpload.addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      this._readJSON(f, data => this.loadSession(data));
+      e.target.value = '';
+    });
+  },
+
+  _readJSON(file, cb) {
+    const fr = new FileReader();
+    fr.onload = ev => {
+      try { cb(JSON.parse(ev.target.result)); }
+      catch (e) { alert('Ошибка разбора JSON: ' + e.message); }
+    };
+    fr.readAsText(file);
+  },
+
+  _importLineTrack(data, filename) {
+    this.pushHistory('import line track');
+    const items = Array.isArray(data) ? data : (data.items || []);
+    const tr = {
+      id:     this.uid(),
+      name:   this.base(filename),
+      type:   'line',
+      color:  '#4a7cdc',
+      items:  items.map(it => ({
+        id:    it.id    || this.uid(),
+        kind:  it.kind  || 'line',
+        start: this.num(it.start),
+        end:   this.num(it.end),
+        text:  it.text  || '',
+      })),
+    };
+    this.normalizeTrackAfterEdit(tr);
+    this.project.tracks.push(tr);
+    this.project.activeTrackId = tr.id;
+    this.invalidatePreviewMap('import-line');
+    this.invalidatePlaybackIndex();
+    this.fullRender();
+    this.markDirty();
+  },
+
+  _importWordsTrack(data, filename) {
+    this.pushHistory('import words track');
+    const raw = Array.isArray(data) ? data : (data.items || []);
+    const tr = {
+      id:    this.uid(),
+      name:  this.base(filename),
+      type:  'words',
+      color: '#7c4adc',
+      items: raw.map(it => ({
+        id:     it.id     || this.uid(),
+        kind:   it.kind   || (it.lineId ? 'word' : 'line'),
+        start:  this.num(it.start),
+        end:    this.num(it.end),
+        text:   it.text   || '',
+        lineId: it.lineId || null,
+        chars:  it.chars  || undefined,
+      })),
+    };
+    this.normalizeTrackAfterEdit(tr);
+    this.project.tracks.push(tr);
+    this.project.activeTrackId = tr.id;
+    this.invalidatePreviewMap('import-words');
+    this.invalidatePlaybackIndex();
+    this.fullRender();
+    this.markDirty();
+  },
+
+  /* ═══════════════════════════════════════════
+     TRANSPORT BINDINGS
+  ═══════════════════════════════════════════ */
+  _bindTransport() {
+    this.ui.btnPlay.addEventListener('click',  () => this.togglePlay());
+    this.ui.btnStop.addEventListener('click',  () => this.stop());
+    this.ui.btnLoop.addEventListener('click',  () => this._cmdLoop());
+    this.ui.btnLoopClear.addEventListener('click', () => this.clearLoop());
+    this.ui.btnCenterPlayhead.addEventListener('click', () => this._cmdCenterPlayhead());
+    this.ui.btnUndo.addEventListener('click',  () => this.undo());
+    this.ui.btnRedo.addEventListener('click',  () => this.redo());
+    this.ui.btnSelectAll.addEventListener('click',  () => this.selectAll());
+    this.ui.btnDeselect.addEventListener('click',   () => this.clearSelection());
+    this.ui.btnSplit.addEventListener('click',      () => this._cmdSplit());
+    this.ui.btnMergePrev.addEventListener('click',  () => this._cmdMergePrev());
+    this.ui.btnMerge.addEventListener('click',      () => this._cmdMergeNext());
+    this.ui.btnDuplicate.addEventListener('click',  () => this._cmdDuplicate());
+    this.ui.btnDelete.addEventListener('click',     () => this._cmdDelete());
+    this.ui.btnAddLine.addEventListener('click',    () => this._cmdAddLine());
+    this.ui.btnAddWord.addEventListener('click',    () => this._cmdAddWord());
+    this.ui.btnFitSong.addEventListener('click',    () => this.fitSong());
+    this.ui.btnZoomSelection.addEventListener('click',   () => this.zoomToSelection());
+    this.ui.btnScrollSelection.addEventListener('click', () => this.scrollToSelection());
+    this.ui.btnGotoSelection.addEventListener('click',   () => this._cmdGotoSelection());
+    this.ui.btnValidate.addEventListener('click',        () => this._cmdValidate());
+    this.ui.btnSaveSession.addEventListener('click',     () => this._cmdSaveSession());
+    this.ui.btnLoadSession.addEventListener('click',     () => this.ui.sessionUpload.click());
+    this.ui.btnRestoreSession.addEventListener('click',  () => this._checkAutosaveRestore(true));
+    this.ui.btnRecent.addEventListener('click',          () => this._showRecentModal());
+    this.ui.btnHotkeys.addEventListener('click',         () => this._showHotkeysModal());
+    this.ui.btnHelp.addEventListener('click',            () => this._showHelpModal());
+    this.ui.btnExportActive.addEventListener('click',    () => this.exportActiveTrack());
+    this.ui.btnExportAll.addEventListener('click',       () => this.exportAllTracks());
+    this.ui.btnExportLine?.addEventListener('click',     () => this._exportByType('line'));
+    this.ui.btnExportWords?.addEventListener('click',    () => this._exportByType('words'));
+    this.ui.btnExportZip?.addEventListener('click',      () => this._exportZip());
+  },
+
+  /* ═══════════════════════════════════════════
+     ZOOM / VOLUME BINDINGS
+  ═══════════════════════════════════════════ */
+  _bindZoom() {
+    this.ui.zoomSlider.addEventListener('input', e => {
+      this.applyZoom(parseFloat(e.target.value));
+    });
+    this.ui.vzoomSlider.addEventListener('input', e => {
+      this.verticalZoom = Math.max(0.4, Math.min(4, parseFloat(e.target.value) / 100));
+      this.updateVZoomReadout();
+      this.fullRender();
+      this.persistUiPrefs();
+    });
+
+    // Wheel zoom on timeline
+    this.ui.timelineContainer.addEventListener('wheel', e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const rect  = this.ui.timelineContainer.getBoundingClientRect();
+      const anchorPx = e.clientX - rect.left + this.ui.timelineContainer.scrollLeft;
+      const factor   = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      this.applyZoom(this.zoom * factor, anchorPx);
+    }, { passive: false });
+  },
+
+  _bindVolume() {
+    this.ui.volumeSlider.addEventListener('input', e => {
+      this.volume = parseFloat(e.target.value) / 100;
+      this.muted  = this.volume === 0;
+      this.applyVol();
+      this.updateVolumeReadout();
+      this.persistUiPrefs();
+    });
+    this.ui.playbackRate.addEventListener('change', e => {
+      this.playbackRate = parseFloat(e.target.value) || 1;
+      this.audioElement.playbackRate = this.playbackRate;
+      this.persistUiPrefs();
+    });
+    this.ui.autosaveEnabled.addEventListener('change', e => {
+      this.autosaveEnabled = e.target.checked;
+      this.persistUiPrefs();
+    });
+    this.ui.autosaveInterval.addEventListener('change', e => {
+      this.autosaveIntervalSec = Math.max(5, parseInt(e.target.value, 10) || 10);
+      this.persistUiPrefs();
+      this._restartAutosaveTimer();
+    });
+  },
+
+  /* ═══════════════════════════════════════════
+     MODE SELECTORS
+  ═══════════════════════════════════════════ */
+  _bindModeSelectors() {
+    this.ui.snapSelect.addEventListener('change', e => {
+      const v = e.target.value;
+      this.snapStep = v === 'items' ? 'items' : parseFloat(v) || 0;
+      this.persistUiPrefs();
+    });
+    this.ui.dragMode.addEventListener('change', e => {
+      this.updateModeIndicator();
+      this.persistUiPrefs();
+    });
+    this.ui.layerMode.addEventListener('change', () => {
+      this.renderTimeline();
+      this.persistUiPrefs();
+    });
+    this.ui.autoScroll.addEventListener('change', e => {
+      this.autoScroll = e.target.checked;
+      this.persistUiPrefs();
+    });
+  },
+
+  updateModeIndicator() {
+    if (this.ui.modeIndicator) {
+      this.ui.modeIndicator.textContent = this.ui.dragMode.value.toUpperCase();
+    }
+  },
+
+  /* ═══════════════════════════════════════════
+     TRACK EVENT BINDINGS (delegated)
+  ═══════════════════════════════════════════ */
+  _bindTrackEvents() {
+    // Track header clicks (delegated)
+    this.ui.trackHeaders.addEventListener('click', e => {
+      const tid = e.target.closest('[data-tid]')?.dataset.tid;
+      if (!tid) return;
+
+      if (e.target.classList.contains('solo-btn')) {
+        this._toggleTrackSolo(tid); return;
+      }
+      if (e.target.classList.contains('mute-btn')) {
+        this._toggleTrackMute(tid); return;
+      }
+      if (e.target.classList.contains('lock-btn')) {
+        this._toggleTrackLock(tid); return;
+      }
+      if (e.target.classList.contains('collapse-btn')) {
+        this.collapsed[tid] = !this.collapsed[tid];
+        this.fullRender(); return;
+      }
+
+      // Click on header background → set active track
+      const hdr = e.target.closest('.track-header');
+      if (hdr) {
+        this.setActiveTrack(tid);
+        this.renderTrackHeaders();
+        this.renderTimeline();
+      }
+    });
+
+    // Double-click on track name → rename
+    this.ui.trackHeaders.addEventListener('dblclick', e => {
+      const nameEl = e.target.closest('.track-name');
+      if (!nameEl) return;
+      const tid = nameEl.closest('[data-tid]')?.dataset.tid ||
+                  nameEl.closest('.track-header')?.dataset.trackId;
+      if (tid) this._showRenameModal(tid);
+    });
+
+    // Click on timeline lane → set active + deselect
+    this.ui.tracksContainer.addEventListener('click', e => {
+      const lane = e.target.closest('.track-lane');
+      if (!lane || e.target.closest('.item-block')) return;
+      const tid = lane.dataset.trackId;
+      if (tid) {
+        this.setActiveTrack(tid);
+        if (!e.shiftKey) this.clearSelection();
+        this.renderTrackHeaders();
+      }
+    });
+  },
+
+  _toggleTrackSolo(tid) {
+    const tr = this.trackById(tid);
+    if (!tr) return;
+    tr.solo = !tr.solo;
+    this.renderTrackHeaders();
+  },
+
+  _toggleTrackMute(tid) {
+    const tr = this.trackById(tid);
+    if (!tr) return;
+    tr.muted = !tr.muted;
+    this.renderTrackHeaders();
+  },
+
+  _toggleTrackLock(tid) {
+    const tr = this.trackById(tid);
+    if (!tr) return;
+    tr.locked = !tr.locked;
+    this.renderTrackHeaders();
+  },
+
+  /* ═══════════════════════════════════════════
+     CONTEXT MENU
+  ═══════════════════════════════════════════ */
+  _bindContextMenu() {
+    const cm  = this.ui.contextMenu;
+    const tc  = this.ui.tracksContainer;
+
+    // Show
+    tc.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const el  = e.target.closest('.item-block');
+      const tid = el?.dataset.trackId ||
+                  e.target.closest('.track-lane')?.dataset.trackId ||
+                  this.project.activeTrackId;
+      const iid = el?.dataset.itemId || null;
+
+      this.context = {
+        trackId:  tid  || null,
+        itemId:   iid  || null,
+        cursorX:  e.clientX,
+        cursorY:  e.clientY,
+        timeAtCursor: (e.clientX - tc.getBoundingClientRect().left +
+                       this.ui.timelineContainer.scrollLeft) / this.zoom,
+      };
+
+      // Select item if right-clicked on it
+      if (tid && iid && !this.selected.ids.has(iid)) {
+        this.selected = { trackId: tid, ids: new Set([iid]) };
+        this.renderTimeline();
+        this.renderInspector();
+      }
+
+      this._updateContextMenuState();
+      cm.style.display = 'block';
+
+      // Position so it stays on screen
+      const cmW = cm.offsetWidth  || 200;
+      const cmH = cm.offsetHeight || 300;
+      let x = e.clientX, y = e.clientY;
+      if (x + cmW > window.innerWidth)  x = window.innerWidth  - cmW - 4;
+      if (y + cmH > window.innerHeight) y = window.innerHeight - cmH - 4;
+      cm.style.left = x + 'px';
+      cm.style.top  = y + 'px';
+    });
+
+    // Hide on outside click
+    document.addEventListener('click', e => {
+      if (!cm.contains(e.target)) cm.style.display = 'none';
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') cm.style.display = 'none';
+    });
+
+    // Menu item actions
+    this._bindContextMenuItems();
+  },
+
+  _updateContextMenuState() {
+    const hasItem     = !!this.context.itemId;
+    const hasSelection = this.selected.ids.size > 0;
+    const isBatch     = this.selected.ids.size > 1;
+
+    const show = (el, cond) => { if (el) el.style.display = cond ? '' : 'none'; };
+
+    show(this.ui.ctxEdit,          hasItem);
+    show(this.ui.ctxSplit,         hasItem);
+    show(this.ui.ctxSplitCursor,   true);
+    show(this.ui.ctxMergePrev,     hasItem && !isBatch);
+    show(this.ui.ctxMergeNext,     hasItem && !isBatch);
+    show(this.ui.ctxDuplicate,     hasSelection);
+    show(this.ui.ctxDelete,        hasSelection);
+    show(this.ui.ctxAddLine,       true);
+    show(this.ui.ctxAddWord,       true);
+    show(this.ui.ctxBatchClose,    isBatch);
+    show(this.ui.ctxBatchDist,     isBatch);
+    show(this.ui.ctxBatchNorm,     isBatch);
+    show(this.ui.ctxMovePlayhead,  true);
+    show(this.ui.ctxZoomSelection, hasSelection);
+    show(this.ui.ctxScrollSelection, hasSelection);
+    show(this.ui.ctxSelTrack,      !!this.context.trackId);
+    show(this.ui.ctxDeleteTrack,   !!this.context.trackId);
+  },
+
+  _bindContextMenuItems() {
+    const cm = this.ui.contextMenu;
+    const on = (el, fn) => el?.addEventListener('click', () => {
+      cm.style.display = 'none';
+      fn();
+    });
+
+    on(this.ui.ctxEdit, () => {
+      const { trackId, itemId } = this.context;
+      if (trackId && itemId) {
+        this.selected = { trackId, ids: new Set([itemId]) };
+        this.renderInspector();
+      }
+    });
+    on(this.ui.ctxSplit, () => {
+      const { trackId, itemId } = this.context;
+      if (trackId && itemId) this.splitItem(trackId, itemId);
+    });
+    on(this.ui.ctxSplitCursor, () => {
+      const { trackId, timeAtCursor } = this.context;
+      if (!trackId) return;
+      const tr = this.trackById(trackId);
+      if (!tr) return;
+      const hit = tr.items.find(i => timeAtCursor > i.start && timeAtCursor < i.end);
+      if (hit) this.splitItem(trackId, hit.id, timeAtCursor);
+    });
+    on(this.ui.ctxMergePrev, () => {
+      const { trackId, itemId } = this.context;
+      if (trackId && itemId) this.mergeWithPrev(trackId, itemId);
+    });
+    on(this.ui.ctxMergeNext, () => {
+      const { trackId, itemId } = this.context;
+      if (trackId && itemId) this.mergeWithNext(trackId, itemId);
+    });
+    on(this.ui.ctxDuplicate,  () => this._cmdDuplicate());
+    on(this.ui.ctxDelete,     () => this._cmdDelete());
+    on(this.ui.ctxAddLine,    () => this._cmdAddLine());
+    on(this.ui.ctxAddWord,    () => this._cmdAddWord());
+    on(this.ui.ctxMovePlayhead, () => {
+      this.seekTo(this.context.timeAtCursor || 0);
+    });
+    on(this.ui.ctxZoomSelection,   () => this.zoomToSelection());
+    on(this.ui.ctxScrollSelection, () => this.scrollToSelection());
+    on(this.ui.ctxSelTrack, () => {
+      const tid = this.context.trackId;
+      if (!tid) return;
+      const tr = this.trackById(tid);
+      if (!tr) return;
+      this.selected = { trackId: tid, ids: new Set(tr.items.map(i => i.id)) };
+      this.renderTimeline();
+      this.renderInspector();
+    });
+    on(this.ui.ctxDeleteTrack, () => {
+      const tid = this.context.trackId;
+      if (!tid || !confirm('Удалить дорожку?')) return;
+      this.pushHistory('delete track');
+      this.project.tracks = this.project.tracks.filter(t => t.id !== tid);
+      if (this.project.activeTrackId === tid) {
+        this.project.activeTrackId = this.project.tracks[0]?.id || null;
+      }
+      this.invalidatePreviewMap('delete-track');
+      this.invalidatePlaybackIndex();
+      this.clearSelection();
+      this.fullRender();
+      this.markDirty();
+    });
+    on(this.ui.ctxBatchClose, () => {
+      const { trackId } = this.context;
+      if (!trackId || this.selected.ids.size < 2) return;
+      const tr  = this.trackById(trackId);
+      const its = [...this.selected.ids]
+        .map(id => this.itemById(trackId, id)).filter(Boolean)
+        .sort((a, b) => a.start - b.start);
+      this.applyTrackEdit(tr, 'batch close gaps', () => {
+        for (let i = 1; i < its.length; i++) {
+          its[i].start = its[i - 1].end;
+          if (its[i].end <= its[i].start) its[i].end = its[i].start + this.MIN_DUR;
+        }
+      });
+    });
+    on(this.ui.ctxBatchDist, () => {
+      const { trackId } = this.context;
+      if (!trackId || this.selected.ids.size < 2) return;
+      const tr  = this.trackById(trackId);
+      const its = [...this.selected.ids]
+        .map(id => this.itemById(trackId, id)).filter(Boolean)
+        .sort((a, b) => a.start - b.start);
+      this.applyTrackEdit(tr, 'batch distribute', () => {
+        const totalDur = its.reduce((s, i) => s + (i.end - i.start), 0);
+        const span     = its[its.length - 1].end - its[0].start;
+        const gap      = Math.max(0, (span - totalDur) / (its.length - 1));
+        let cur = its[0].start;
+        its.forEach(it => {
+          const d = it.end - it.start;
+          it.start = cur; it.end = cur + d;
+          cur = it.end + gap;
+        });
+      });
+    });
+    on(this.ui.ctxBatchNorm, () => {
+      const { trackId } = this.context;
+      if (!trackId || this.selected.ids.size < 2) return;
+      const tr  = this.trackById(trackId);
+      const its = [...this.selected.ids]
+        .map(id => this.itemById(trackId, id)).filter(Boolean);
+      const avgDur = its.reduce((s, i) => s + (i.end - i.start), 0) / its.length;
+      this.applyTrackEdit(tr, 'batch normalize duration', () => {
+        its.forEach(it => { it.end = it.start + avgDur; });
+      });
+    });
+  },
+
+  /* ═══════════════════════════════════════════
+     AUTOSAVE
+  ═══════════════════════════════════════════ */
+  _bindAutosave() {
+    this._restartAutosaveTimer();
+  },
+
+  _restartAutosaveTimer() {
+    clearInterval(this.autosaveTimer);
+    if (!this.autosaveEnabled) return;
+    const ms = (this.autosaveIntervalSec || 10) * 1000;
+    this.autosaveTimer = setInterval(() => {
+      if (this.dirty) this.saveAutoDraft();
+    }, ms);
+  },
+
+  _checkAutosaveRestore(force) {
+    try {
+      const raw = localStorage.getItem(this.DRAFT_KEY);
+      if (!raw) return;
+      const snap = JSON.parse(raw);
+      if (!snap?.project) return;
+      if (!force && !this.dirty && !this.project.tracks.length) {
+        this._showRestoreModal(snap);
+        return;
+      }
+      if (force) this._showRestoreModal(snap);
+    } catch (e) { console.warn('autosave check:', e); }
+  },
+
+  _showRestoreModal(snap) {
+    const m = this.ui.restoreModal;
+    const d = this.ui.restoreModalDesc;
+    if (!m) return;
+    const ts = snap.ts ? new Date(snap.ts).toLocaleString() : '?';
+    d.textContent = `Автосохранение от ${ts}. Восстановить?`;
+    m.classList.remove('hidden');
+
+    const yes  = this.ui.btnRestoreYes;
+    const no   = this.ui.btnRestoreNo;
+    const del  = this.ui.btnRestoreDelete;
+
+    const close = () => m.classList.add('hidden');
+
+    const onYes = () => { close(); this.loadSession(snap); };
+    const onNo  = () => { close(); };
+    const onDel = () => {
+      close();
+      localStorage.removeItem(this.DRAFT_KEY);
+    };
+
+    // Remove previous listeners to avoid stacking
+    yes.replaceWith(yes.cloneNode(true));
+    no.replaceWith(no.cloneNode(true));
+    del.replaceWith(del.cloneNode(true));
+    this.ui.btnRestoreYes    = this.ui.restoreModal.querySelector('#btn-restore-yes');
+    this.ui.btnRestoreNo     = this.ui.restoreModal.querySelector('#btn-restore-no');
+    this.ui.btnRestoreDelete = this.ui.restoreModal.querySelector('#btn-restore-delete');
+    this.ui.btnRestoreYes.addEventListener('click',    onYes);
+    this.ui.btnRestoreNo.addEventListener('click',     onNo);
+    this.ui.btnRestoreDelete.addEventListener('click', onDel);
+  },
+
+  /* ═══════════════════════════════════════════
+     RECENT DRAFTS
+  ═══════════════════════════════════════════ */
+  _addRecentEntry(snap) {
+    try {
+      let list = JSON.parse(localStorage.getItem(this.RECENT_KEY) || '[]');
+      list = list.filter(e => e.audio !== snap.audio || e.ts !== snap.ts);
+      list.unshift({ ts: snap.ts, audio: snap.audio });
+      if (list.length > this.MAX_RECENT) list = list.slice(0, this.MAX_RECENT);
+      localStorage.setItem(this.RECENT_KEY, JSON.stringify(list));
+    } catch (e) { console.warn(e); }
+  },
+
+  _showRecentModal() {
+    const m  = this.ui.recentModal;
+    const ul = this.ui.recentList;
+    if (!m || !ul) return;
+
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(this.RECENT_KEY) || '[]'); }
+    catch (_) {}
+
+    ul.innerHTML = '';
+    if (!list.length) {
+      ul.innerHTML = '<li class="no-sel">Нет записей</li>';
+    } else {
+      list.forEach(entry => {
+        const li = document.createElement('li');
+        li.textContent = `${entry.audio || '?'} — ${new Date(entry.ts).toLocaleString()}`;
+        ul.appendChild(li);
+      });
+    }
+
+    m.classList.remove('hidden');
+    this.ui.btnRecentClearAll.onclick = () => {
+      localStorage.removeItem(this.RECENT_KEY);
+      ul.innerHTML = '<li class="no-sel">Нет записей</li>';
+    };
+    this.ui.btnRecentClose.onclick = () => m.classList.add('hidden');
+  },
+
+  /* ═══════════════════════════════════════════
+     MODALS
+  ═══════════════════════════════════════════ */
+  _bindModals() {
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('click', e => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+    });
+  },
+
+  /* ── Hotkeys modal ── */
+  _showHotkeysModal() {
+    const m = this.ui.hotkeysModal;
+    if (!m) return;
+    this._renderHotkeysModal();
+    m.classList.remove('hidden');
+
+    this.ui.hkSearch.oninput = e => {
+      const q = e.target.value.toLowerCase();
+      m.querySelectorAll('.hk-row').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    };
+    this.ui.btnHotkeysClose.onclick = () => m.classList.add('hidden');
+    this.ui.btnHotkeysSave.onclick  = () => { this._saveKeymap(); m.classList.add('hidden'); };
+    this.ui.btnHotkeysReset.onclick = () => {
+      this.keymap = this._defaultKeymap();
+      this._saveKeymap();
+      this._renderHotkeysModal();
+    };
+  },
+
+  _renderHotkeysModal() {
+    const list = this.ui.hotkeysList;
+    if (!list) return;
+    list.innerHTML = '';
+    Object.entries(this.commands).forEach(([cmdId, cmd]) => {
+      const row = document.createElement('div');
+      row.className = 'hk-row';
+
+      const lbl = document.createElement('span');
+      lbl.className   = 'hk-label';
+      lbl.textContent = cmd.label;
+
+      const key = document.createElement('kbd');
+      key.className   = 'hk-key';
+      key.textContent = this.keymap[cmdId] || '—';
+      key.title       = 'Click to remap';
+      key.style.cursor = 'pointer';
+      key.addEventListener('click', () => {
+        this.hotkeysWaiting = cmdId;
+        key.textContent     = '⌨ Press key…';
+        key.classList.add('waiting');
+      });
+
+      row.appendChild(lbl);
+      row.appendChild(key);
+      list.appendChild(row);
+    });
+  },
+
+  /* ── Help modal ── */
+  _showHelpModal() {
+    const m = this.ui.helpModal;
+    if (!m) return;
+    m.classList.remove('hidden');
+    this.ui.btnHelpClose.onclick = () => m.classList.add('hidden');
+  },
+
+  /* ── Rename modal ── */
+  _showRenameModal(trackId) {
+    const m  = this.ui.renameModal;
+    const tr = this.trackById(trackId);
+    if (!m || !tr) return;
+
+    this.ui.renameInput.value = tr.name || '';
+    this.ui.renameColor.value = tr.color || '#4a7cdc';
+    m.classList.remove('hidden');
+    this.ui.renameInput.focus();
+    this.ui.renameInput.select();
+
+    const apply = () => {
+      tr.name  = this.ui.renameInput.value.trim() || tr.name;
+      tr.color = this.ui.renameColor.value;
+      m.classList.add('hidden');
+      this.renderTrackHeaders();
+      this.renderTimeline();
+      this.markDirty();
+    };
+
+    this.ui.btnRenameOk.onclick     = apply;
+    this.ui.btnRenameCancel.onclick = () => m.classList.add('hidden');
+    this.ui.renameInput.onkeydown   = e => {
+      if (e.key === 'Enter') apply();
+      if (e.key === 'Escape') m.classList.add('hidden');
+    };
+  },
+
+  /* ── Loop modal ── */
+  _showLoopModal() {
+    const m = this.ui.loopModal;
+    if (!m) return;
+    this.ui.loopInVal.value  = (this.loop.start ?? this.audioElement.currentTime).toFixed(3);
+    this.ui.loopOutVal.value = (this.loop.end   ?? Math.min(this.duration, (this.loop.start ?? 0) + 5)).toFixed(3);
+    m.classList.remove('hidden');
+
+    this.ui.btnLoopOk.onclick = () => {
+      const s = parseFloat(this.ui.loopInVal.value);
+      const e = parseFloat(this.ui.loopOutVal.value);
+      if (!isNaN(s) && !isNaN(e) && e > s) this.setLoop(s, e);
+      m.classList.add('hidden');
+    };
+    this.ui.btnLoopCancel.onclick = () => m.classList.add('hidden');
+  },
+
+  /* ── Validation ── */
+  _runValidation() {
+    const issues = [];
+    this.project.tracks.forEach(tr => {
+      const sorted = tr.items.slice().sort((a, b) => a.start - b.start);
+      sorted.forEach((it, i) => {
+        if (it.end <= it.start)
+          issues.push({ tr: tr.name, id: it.id, msg: `end ≤ start (${it.start}–${it.end})` });
+        if (i > 0 && it.start < sorted[i-1].end && it.kind === sorted[i-1].kind)
+          issues.push({ tr: tr.name, id: it.id, msg: `overlap with previous ${it.kind}` });
+        if (!it.text?.trim())
+          issues.push({ tr: tr.name, id: it.id, msg: 'empty text', severity: 'warn' });
+      });
+    });
+    return issues;
+  },
+
+  _showValidationModal(issues) {
+    const m  = this.ui.validationModal;
+    const ul = this.ui.validationList;
+    if (!m || !ul) return;
+
+    ul.innerHTML = '';
+    if (!issues.length) {
+      ul.innerHTML = '<li class="ok">✓ Нет проблем</li>';
+    } else {
+      issues.forEach(iss => {
+        const li = document.createElement('li');
+        li.className   = iss.severity || 'error';
+        li.textContent = `[${iss.tr}] ${iss.msg}`;
+        li.dataset.id  = iss.id;
+        li.style.cursor = 'pointer';
+        li.addEventListener('click', () => {
+          // Find item across tracks
+          for (const tr of this.project.tracks) {
+            const it = tr.items.find(i => i.id === iss.id);
+            if (it) {
+              this.setActiveTrack(tr.id);
+              this.selected = { trackId: tr.id, ids: new Set([it.id]) };
+              this.scrollToSelection();
+              this.renderTimeline();
+              this.renderInspector();
+              break;
+            }
+          }
+        });
+        ul.appendChild(li);
+      });
+    }
+
+    m.classList.remove('hidden');
+    this.ui.btnValidationClose.onclick = () => m.classList.add('hidden');
+    this.ui.btnValidationRerun.onclick = () => {
+      this._showValidationModal(this._runValidation());
+    };
+    this.ui.btnValidationFix?.addEventListener('click', () => {
+      this.pushHistory('auto-fix');
+      this.project.tracks.forEach(tr => {
+        this.normalizeTrackAfterEdit(tr);
+      });
+      this.markDirty();
+      this.fullRender();
+      this._showValidationModal(this._runValidation());
+    }, { once: true });
+    this.ui.btnValidationExport?.addEventListener('click', () => {
+      const txt = issues.map(i => `[${i.tr}] ${i.msg}`).join('\n');
+      this.downloadBlob(new Blob([txt], { type: 'text/plain' }), 'validation.txt');
+    }, { once: true });
+  },
+
+  /* ═══════════════════════════════════════════
+     EXPORT HELPERS
+  ═══════════════════════════════════════════ */
+  _exportByType(type) {
+    const tr = this.project.tracks.find(t => t.type === type);
+    if (!tr) return alert(`Дорожка типа "${type}" не найдена`);
+    const data = this.normalizeTrackForExport(tr);
+    this.downloadBlob(
+      new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+      `${this.audioFileName}_${type}.json`
+    );
+  },
+
+  async _exportZip() {
+    if (typeof JSZip === 'undefined') {
+      alert('JSZip не подключён');
+      return;
+    }
+    const zip = new JSZip();
+    this.project.tracks.forEach(tr => {
+      const data = this.normalizeTrackForExport(tr);
+      zip.file(`${tr.name || tr.type}.json`, JSON.stringify(data, null, 2));
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    this.downloadBlob(blob, `${this.audioFileName}_tracks.zip`);
   },
 });
-
-document.addEventListener('DOMContentLoaded',()=>App.init());
