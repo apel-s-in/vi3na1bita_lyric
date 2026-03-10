@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-0be7a33c357fa6722256266de26bdad828902b8d.idx
-│   │       ├── pack-0be7a33c357fa6722256266de26bdad828902b8d.pack
-│   │       └── pack-0be7a33c357fa6722256266de26bdad828902b8d.rev
+│   │       ├── pack-aa18cf14a67fc31d28e74b567a0ee443eadc9bdb.idx
+│   │       ├── pack-aa18cf14a67fc31d28e74b567a0ee443eadc9bdb.pack
+│   │       └── pack-aa18cf14a67fc31d28e74b567a0ee443eadc9bdb.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -96,7 +96,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 13:53:51 UTC
+Сгенерировано: 2026-03-10 13:54:54 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -378,6 +378,71 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .workspace.timeline-expanded .workspace-main .sidebar,
 .workspace.timeline-expanded .workspace-main .resizer{display:none}
 .workspace.timeline-expanded .workspace-main .timeline-wrap{flex:1}
+/* ── ke-layout.css additions ──────────────────────────── */
+
+/* Fullscreen timeline — architectural, not dead code */
+.workspace.timeline-expanded .sidebar,
+.workspace.timeline-expanded #inspector,
+.workspace.timeline-expanded #preview-panel {
+  display: none !important;
+}
+.workspace.timeline-expanded #workspace-main {
+  flex: 1 1 auto !important;
+  height: 100% !important;
+}
+
+/* Layout lock — body class applied by _applyLayoutLockUi() */
+body.layout-locked .grp-handle {
+  cursor: default;
+  pointer-events: none;
+}
+body.layout-locked #sidebar-resizer,
+body.layout-locked #preview-resizer,
+body.layout-locked #timeline-resizer {
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+/* Drag ghost placeholder */
+.row .grp.dragging {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Resizer active state */
+#timeline-resizer.active,
+#sidebar-resizer.active,
+#preview-resizer.active {
+  background: var(--accent, #4a7cdc);
+  opacity: 1;
+}
+
+/* Panel collapsed */
+.panel-collapsed > *:not(.panel-header) {
+  display: none !important;
+}
+.panel-collapsed {
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+/* Collapsed sidebar */
+.sidebar.collapsed-sidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden;
+  border: none;
+}
+
+/* Inspector playing word highlight */
+.lyric-word.playing {
+  color: var(--accent, #4a7cdc);
+  font-weight: 700;
+}
+.lyric-line.playing {
+  background: rgba(74, 124, 220, 0.08);
+  border-left: 3px solid var(--accent, #4a7cdc);
+}
 
 //=================================================
 // FILE: /karaoke-editor.html
