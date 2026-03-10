@@ -576,7 +576,27 @@ Object.assign(App, {
     const btn=this.ui.toolbarCompactBtn,tb=this.ui.toolbar;
     btn.addEventListener('click',()=>{
       const c=tb.classList.toggle('compact');
-      btn.textContent=c?'▼':'▲';this._saveLayoutPref('toolbarCompact',c);
+      btn.textContent=c?'▼':'▲';
+      this._saveLayoutPref('toolbarCompact',c);
+    });
+  },
+
+  _bindLayoutLock(){
+    this.ui.btnLayoutLock?.addEventListener('click',()=>{
+      this.layoutUnlocked=!this.layoutUnlocked;
+      this.persistUiPrefs();
+      this._applyLayoutLockUi();
+    });
+  },
+
+  _applyLayoutLockUi(){
+    document.body.classList.toggle('layout-locked',!this.layoutUnlocked);
+    if(this.ui.btnLayoutLock){
+      this.ui.btnLayoutLock.textContent=this.layoutUnlocked?'🔓':'🔒';
+      this.ui.btnLayoutLock.title=this.layoutUnlocked?'Интерфейс разблокирован: можно настраивать и двигать':'Интерфейс заблокирован: настройка и перетаскивание отключены';
+    }
+    document.querySelectorAll('.grp[data-grp]').forEach(grp=>{
+      grp.draggable=!!this.layoutUnlocked;
     });
   },
 
@@ -587,29 +607,43 @@ Object.assign(App, {
   _setupRowDragDrop(row){
     let dragEl=null,ph=null;
     row.addEventListener('dragstart',e=>{
-      const grp=e.target.closest('.grp[draggable]'); if(!grp)return;
-      dragEl=grp; dragEl.classList.add('dragging');
-      e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',grp.id);
+      if(!this.layoutUnlocked){e.preventDefault();return}
+      const handle=e.target.closest('.grp-handle');
+      const grp=handle?.closest('.grp[draggable]');
+      if(!grp){e.preventDefault();return}
+      dragEl=grp;
+      dragEl.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',grp.id);
       ph=document.createElement('div');
       ph.style.cssText=`width:${grp.offsetWidth}px;height:${grp.offsetHeight}px;border:1px dashed var(--br2);border-radius:4px;flex-shrink:0`;
       setTimeout(()=>grp.after(ph),0);
     });
     row.addEventListener('dragover',e=>{
-      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      if(!this.layoutUnlocked||!dragEl||!ph)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
       const over=e.target.closest('.grp[draggable]');
-      if(!over||over===dragEl||!ph)return;
+      if(!over||over===dragEl)return;
       const r=over.getBoundingClientRect();
       e.clientX<r.left+r.width/2?over.before(ph):over.after(ph);
     });
     row.addEventListener('drop',e=>{
-      e.preventDefault(); if(!dragEl||!ph)return;
-      ph.replaceWith(dragEl); dragEl.classList.remove('dragging');
-      dragEl=null;ph=null; this._saveToolbarOrder();
+      if(!this.layoutUnlocked||!dragEl||!ph)return;
+      e.preventDefault();
+      ph.replaceWith(dragEl);
+      dragEl.classList.remove('dragging');
+      dragEl=null;
+      ph=null;
+      this._saveToolbarOrder();
     });
     row.addEventListener('dragend',()=>{
-      dragEl?.classList.remove('dragging'); ph?.remove(); dragEl=null;ph=null;
+      dragEl?.classList.remove('dragging');
+      ph?.remove();
+      dragEl=null;
+      ph=null;
     });
-    row.addEventListener('dragenter',e=>{if(e.target===row)row.classList.add('row-drag-over')});
+    row.addEventListener('dragenter',e=>{if(this.layoutUnlocked&&e.target===row)row.classList.add('row-drag-over')});
     row.addEventListener('dragleave',e=>{if(e.target===row)row.classList.remove('row-drag-over')});
     ['drop','dragend'].forEach(ev=>row.addEventListener(ev,()=>row.classList.remove('row-drag-over')));
   },
@@ -650,7 +684,13 @@ Object.assign(App, {
       if(g('toolbarOrder'))this._restoreToolbarOrder(g('toolbarOrder'));
       if(g('sidebarCollapsed')){this.ui.sidebar.classList.add('collapsed-sidebar');this.ui.sidebarCollapseBtn.textContent='▶'}
       if(g('inspectorCollapsed')){this.ui.inspectorPanel.classList.add('panel-collapsed');this.ui.inspectorCollapseBtn.textContent='▼'}
-      if(g('previewCollapsed')){this.ui.previewPanel.classList.add('panel-collapsed');this.ui.previewCollapseBtn.textContent='▼'}
+      if(g('previewCollapsed')){
+        this.ui.previewPanel.classList.add('panel-collapsed');
+        this.ui.previewCollapseBtn.textContent='▼';
+        this.ui.previewResizer.style.display='none';
+      }else{
+        this.ui.previewResizer.style.display='block';
+      }
       const wh=g('workspaceH');
       if(wh){this.ui.workspaceMain.style.flex='none';this.ui.workspaceMain.style.height=wh+'px'}
     }catch(e){console.warn('layout restore:',e)}
