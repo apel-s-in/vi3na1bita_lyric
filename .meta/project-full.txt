@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-470f3581d939cb952af14452fde84b7f36c0a3b5.idx
-│   │       ├── pack-470f3581d939cb952af14452fde84b7f36c0a3b5.pack
-│   │       └── pack-470f3581d939cb952af14452fde84b7f36c0a3b5.rev
+│   │       ├── pack-a9b64e30cb9f713b832524d5044c0d61856bbf1f.idx
+│   │       ├── pack-a9b64e30cb9f713b832524d5044c0d61856bbf1f.pack
+│   │       └── pack-a9b64e30cb9f713b832524d5044c0d61856bbf1f.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -93,7 +93,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 11:56:12 UTC
+Сгенерировано: 2026-03-10 11:57:47 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -2412,8 +2412,10 @@ Object.assign(App, {
     for(let j=sortedItems.length-1;j>=0;j--){
       const o=sortedItems[j];
       if(o.end>boundary+1e-9){
-        const p=o.end-boundary; o.end-=p; o.start=Math.max(0,o.start-p);
-        if(o.end<=o.start)o.end=o.start+this.MIN_DUR;
+        const dur=o.end-o.start;
+        const shift=o.end-boundary;
+        o.start=Math.max(0,o.start-shift);
+        o.end=o.start+dur;
         this._rippleAffected.add(o.id);
       }
       boundary=Math.min(boundary,o.start);
