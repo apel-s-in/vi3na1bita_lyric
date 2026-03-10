@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-8d1a169941996bddce31b61a6909ea54764dcba8.idx
-│   │       ├── pack-8d1a169941996bddce31b61a6909ea54764dcba8.pack
-│   │       └── pack-8d1a169941996bddce31b61a6909ea54764dcba8.rev
+│   │       ├── pack-266d9090e9684285ae2c4a4c7d287b0eed27cffd.idx
+│   │       ├── pack-266d9090e9684285ae2c4a4c7d287b0eed27cffd.pack
+│   │       └── pack-266d9090e9684285ae2c4a4c7d287b0eed27cffd.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -89,7 +89,7 @@ vi3na1bita_lyric/
 ├── karaoke-editor.html
 └── karaoke-editor.js
 
-Сгенерировано: 2026-03-10 10:38:23 UTC
+Сгенерировано: 2026-03-10 10:42:48 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -770,6 +770,7 @@ init(){
   this.pushHistory('Initial');
   this.checkDraftOnLaunch();
   this.startAutosaveLoop();
+  this.initFlexLayout();
   this.fullRender();
 },
 
@@ -836,7 +837,16 @@ cache(){
     btnExportPreviewCopy:g('btn-export-preview-copy'),btnExportPreviewDownload:g('btn-export-preview-download'),
     btnExportPreviewClose:g('btn-export-preview-close'),
     ctxDeleteTrack:g('ctx-delete-track'),
-    loader:g('loader'),audioPlayer:g('audio-player')
+    loader:g('loader'),audioPlayer:g('audio-player'),
+    workspace:g('workspace'),workspaceMain:g('workspace-main'),
+    timelineResizer:g('timeline-resizer'),
+    sidebarCollapseBtn:g('sidebar-collapse-btn'),
+    inspectorCollapseBtn:g('inspector-collapse-btn'),
+    previewCollapseBtn:g('preview-collapse-btn'),
+    inspectorBody:g('inspector-body'),previewBody:g('preview-body'),
+    previewPanel:g('preview-panel'),
+    toolbarCompactBtn:g('toolbar-compact-btn'),
+    toolbar:g('toolbar'),toolbarRows:g('toolbar-rows')
   };
 },
 
@@ -1075,6 +1085,186 @@ bind(){
   }else{
     window.addEventListener('resize',()=>this.renderRuler());
   }
+},
+
+/* ─── flexible layout engine ─────────────────────────────────────── */
+initFlexLayout(){
+  this._bindTimelineResizer();
+  this._bindSidebarCollapse();
+  this._bindPanelCollapse();
+  this._bindToolbarCompact();
+  this._bindToolbarGroupDrag();
+  this._restoreLayoutPrefs();
+},
+
+_bindTimelineResizer(){
+  const el=this.ui.timelineResizer,wm=this.ui.workspaceMain;
+  let startY=0,startH=0,active=false;
+  el.addEventListener('mousedown',e=>{
+    e.preventDefault();active=true;startY=e.clientY;
+    startH=wm.offsetHeight;
+    document.body.style.cursor='row-resize';
+    el.classList.add('active');
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!active)return;
+    const h=Math.max(160,Math.min(window.innerHeight-60,startH+(e.clientY-startY)));
+    wm.style.flex='none';wm.style.height=h+'px';
+    this.renderRuler();
+    this._saveLayoutPref('workspaceH',h);
+  });
+  document.addEventListener('mouseup',()=>{
+    if(active){active=false;document.body.style.cursor='';el.classList.remove('active')}
+  });
+},
+
+_bindSidebarCollapse(){
+  const btn=this.ui.sidebarCollapseBtn,sb=this.ui.sidebar;
+  btn.addEventListener('click',()=>{
+    const collapsed=sb.classList.toggle('collapsed-sidebar');
+    btn.textContent=collapsed?'▶':'◀';
+    this._saveLayoutPref('sidebarCollapsed',collapsed);
+    setTimeout(()=>this.renderRuler(),160);
+  });
+},
+
+_bindPanelCollapse(){
+  const setup=(btn,panel,body,key)=>{
+    btn.addEventListener('click',()=>{
+      const col=panel.classList.toggle('panel-collapsed');
+      btn.textContent=col?'▼':'▲';
+      this._saveLayoutPref(key,col);
+    });
+  };
+  setup(this.ui.inspectorCollapseBtn,this.ui.inspectorPanel,this.ui.inspectorBody,'inspectorCollapsed');
+  setup(this.ui.previewCollapseBtn,this.ui.previewPanel,this.ui.previewBody,'previewCollapsed');
+},
+
+_bindToolbarCompact(){
+  const btn=this.ui.toolbarCompactBtn,tb=this.ui.toolbar;
+  btn.addEventListener('click',()=>{
+    const compact=tb.classList.toggle('compact');
+    btn.textContent=compact?'▼':'▲';
+    this._saveLayoutPref('toolbarCompact',compact);
+  });
+},
+
+_bindToolbarGroupDrag(){
+  // Drag-and-drop reordering of .grp blocks within .row
+  const rows=document.querySelectorAll('.row');
+  rows.forEach(row=>this._setupRowDragDrop(row));
+},
+
+_setupRowDragDrop(row){
+  let dragEl=null,placeholder=null;
+  const grps=()=>row.querySelectorAll('.grp[draggable]');
+
+  row.addEventListener('dragstart',e=>{
+    const grp=e.target.closest('.grp[draggable]');if(!grp)return;
+    dragEl=grp;
+    dragEl.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',grp.id);
+    placeholder=document.createElement('div');
+    placeholder.style.cssText=`width:${grp.offsetWidth}px;height:${grp.offsetHeight}px;border:1px dashed var(--br2);border-radius:4px;flex-shrink:0`;
+    setTimeout(()=>grp.after(placeholder),0);
+  });
+
+  row.addEventListener('dragover',e=>{
+    e.preventDefault();e.dataTransfer.dropEffect='move';
+    const over=e.target.closest('.grp[draggable]');
+    if(!over||over===dragEl)return;
+    const rect=over.getBoundingClientRect();
+    const insertBefore=e.clientX<rect.left+rect.width/2;
+    if(placeholder){
+      insertBefore?over.before(placeholder):over.after(placeholder);
+    }
+  });
+
+  row.addEventListener('drop',e=>{
+    e.preventDefault();
+    if(!dragEl||!placeholder)return;
+    placeholder.replaceWith(dragEl);
+    dragEl.classList.remove('dragging');
+    dragEl=null;placeholder=null;
+    this._saveToolbarOrder();
+  });
+
+  row.addEventListener('dragend',()=>{
+    if(dragEl)dragEl.classList.remove('dragging');
+    placeholder?.remove();
+    dragEl=null;placeholder=null;
+  });
+
+  row.addEventListener('dragenter',e=>{if(e.target===row)row.classList.add('row-drag-over')});
+  row.addEventListener('dragleave',e=>{if(e.target===row)row.classList.remove('row-drag-over')});
+  ['drop','dragend'].forEach(ev=>row.addEventListener(ev,()=>row.classList.remove('row-drag-over')));
+},
+
+_saveToolbarOrder(){
+  const rows=document.querySelectorAll('.row');
+  const order={};
+  rows.forEach(row=>{
+    const rowId=row.id||row.dataset.row;
+    order[rowId]=[...row.querySelectorAll('.grp[data-grp]')].map(g=>g.dataset.grp);
+  });
+  this._saveLayoutPref('toolbarOrder',order);
+},
+
+_restoreToolbarOrder(order){
+  if(!order)return;
+  Object.entries(order).forEach(([rowId,grpIds])=>{
+    const row=document.getElementById(rowId)||document.querySelector(`[data-row="${rowId}"]`);
+    if(!row)return;
+    grpIds.forEach(grpId=>{
+      const grp=document.querySelector(`[data-grp="${grpId}"]`);
+      if(grp&&grp.closest('.row')===row)row.appendChild(grp);
+      else if(grp)row.appendChild(grp);
+    });
+  });
+},
+
+_saveLayoutPref(key,val){
+  try{
+    const p=JSON.parse(localStorage.getItem(this.UI_KEY)||'{}');
+    p['layout_'+key]=val;
+    localStorage.setItem(this.UI_KEY,JSON.stringify(p));
+  }catch(e){console.warn('layout pref save:',e)}
+},
+
+_restoreLayoutPrefs(){
+  try{
+    const p=JSON.parse(localStorage.getItem(this.UI_KEY)||'{}');
+    const g=k=>p['layout_'+k];
+
+    // Toolbar compact
+    if(g('toolbarCompact')){
+      this.ui.toolbar.classList.add('compact');
+      this.ui.toolbarCompactBtn.textContent='▼';
+    }
+    // Toolbar group order
+    if(g('toolbarOrder'))this._restoreToolbarOrder(g('toolbarOrder'));
+    // Sidebar collapsed
+    if(g('sidebarCollapsed')){
+      this.ui.sidebar.classList.add('collapsed-sidebar');
+      this.ui.sidebarCollapseBtn.textContent='▶';
+    }
+    // Panel collapsed states
+    if(g('inspectorCollapsed')){
+      this.ui.inspectorPanel.classList.add('panel-collapsed');
+      this.ui.inspectorCollapseBtn.textContent='▼';
+    }
+    if(g('previewCollapsed')){
+      this.ui.previewPanel.classList.add('panel-collapsed');
+      this.ui.previewCollapseBtn.textContent='▼';
+    }
+    // Workspace height
+    const wh=g('workspaceH');
+    if(wh){
+      this.ui.workspaceMain.style.flex='none';
+      this.ui.workspaceMain.style.height=wh+'px';
+    }
+  }catch(e){console.warn('layout restore:',e)}
 },
 
 /* ─── audio ──────────────────────────────────────────────────────── */
@@ -2021,7 +2211,11 @@ handleGlobalMouseUp(){
     this.ui.selectionBox.classList.add('hidden');
     return;
   }
-  if(this.resize.active){this.resize.active=false;document.body.style.cursor='';this.persistUiPrefs()}
+  if(this.resize.active){
+    this.resize.active=false;document.body.style.cursor='';
+    this.resize.el?.classList.remove('active');
+    this.persistUiPrefs();
+  }
 },
 
 finalizeMarquee(){
@@ -3215,7 +3409,9 @@ openHelpModal(){
 /* ─── resizer ────────────────────────────────────────────────────── */
 startResize(e,target){
   e.preventDefault();
-  this.resize={active:true,target,startX:e.clientX,startY:e.clientY,
+  const el=target==='sidebar'?this.ui.sidebarResizer:this.ui.previewResizer;
+  el?.classList.add('active');
+  this.resize={active:true,target,startX:e.clientX,startY:e.clientY,el,
     startDim:target==='sidebar'?this.ui.sidebar.offsetWidth:this.ui.inspectorPanel.offsetHeight};
   document.body.style.cursor=target==='sidebar'?'col-resize':'row-resize';
 },
