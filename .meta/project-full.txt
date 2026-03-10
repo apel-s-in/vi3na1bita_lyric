@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-c8863367975501967cca78940e09689c2a5bf693.idx
-│   │       ├── pack-c8863367975501967cca78940e09689c2a5bf693.pack
-│   │       └── pack-c8863367975501967cca78940e09689c2a5bf693.rev
+│   │       ├── pack-abbf558727bc657137f4dae407f79f1965487691.idx
+│   │       ├── pack-abbf558727bc657137f4dae407f79f1965487691.pack
+│   │       └── pack-abbf558727bc657137f4dae407f79f1965487691.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -96,7 +96,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 14:13:40 UTC
+Сгенерировано: 2026-03-10 14:15:05 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -4352,6 +4352,10 @@ Object.assign(App, {
      Same UX: drag by handle, reorder within row, order saved on drop.
   ═══════════════════════════════════════════ */
   _bindToolbarGroupDrag() {
+    // Один глобальный Escape-листенер для всех drag-сессий
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') this._toolbarDragEscape = true;
+    });
     document.querySelectorAll('.row').forEach(row => this._setupRowDragDrop(row));
   },
 
@@ -4422,6 +4426,8 @@ Object.assign(App, {
 
     row.addEventListener('pointermove', e => {
       if (!dragEl || !pointerOrigin) return;
+      // Глобальный Escape (флаг из _bindToolbarGroupDrag)
+      if (this._toolbarDragEscape) { this._toolbarDragEscape = false; cleanup(); return; }
       const dx = Math.abs(e.clientX - pointerOrigin.x);
       const dy = Math.abs(e.clientY - pointerOrigin.y);
 
@@ -4456,16 +4462,7 @@ Object.assign(App, {
 
     row.addEventListener('pointerup', finishDrag);
     row.addEventListener('pointercancel', cleanup);
-
-    // Escape key cancels drag
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && isDragging) {
-        // Return dragEl to original position: re-insert before ghost position
-        cleanup();
-      }
-    });
-
-    // Safety: if layout lock flips during drag, abort
+    // Safety: если layout lock флипнул во время drag — прерываем
     document.body.addEventListener('classChange_layoutLock', cleanup, { passive: true });
   },
 
