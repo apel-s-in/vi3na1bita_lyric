@@ -319,8 +319,10 @@ Object.assign(App, {
     let active = false, sY = 0, sH = 0;
 
     el.addEventListener('mousedown', e => {
+      const h = this.ui.inspectorPanel.offsetHeight;
+      if (!h) return; // панель скрыта (fullscreen или collapsed) — resize невозможен
       e.preventDefault();
-      active = true; sY = e.clientY; sH = this.ui.inspectorPanel.offsetHeight;
+      active = true; sY = e.clientY; sH = h;
       document.body.style.cursor = 'row-resize';
       el.classList.add('active');
     });
