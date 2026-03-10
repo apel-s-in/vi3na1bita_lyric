@@ -161,11 +161,10 @@ const App = {
   persistUiPrefs() {
     try {
       const stored = JSON.parse(localStorage.getItem(this.UI_KEY) || '{}');
-      // Write only non-layout fields here; layout fields owned by ke-layout.js
+      // sidebarWidth управляется ke-layout.js через layout-блок — здесь не пишем
       const o = {
-        sidebarWidth: this.ui.sidebar.style.width,
-        dragMode:     this.ui.dragMode.value,
-        layerMode:    this.ui.layerMode.value,
+        dragMode:       this.ui.dragMode.value,
+        layerMode:      this.ui.layerMode.value,
         layoutUnlocked: this.layoutUnlocked,
       };
       this._uiPrefFields.forEach(f => { o[f] = this[f]; });
@@ -179,9 +178,9 @@ const App = {
     try {
       const p = JSON.parse(localStorage.getItem(this.UI_KEY) || '{}');
       this._uiPrefFields.forEach(f => { if (p[f] !== undefined) this[f] = p[f]; });
-      if (p.sidebarWidth)     this.ui.sidebar.style.width = p.sidebarWidth;
-      if (p.dragMode)         this.ui.dragMode.value = p.dragMode;
-      if (p.layerMode)        this.ui.layerMode.value = p.layerMode;
+      // sidebarWidth восстанавливается ke-layout.js через layout-блок
+      if (p.dragMode)  this.ui.dragMode.value  = p.dragMode;
+      if (p.layerMode) this.ui.layerMode.value = p.layerMode;
       if (p.layoutUnlocked !== undefined) this.layoutUnlocked = !!p.layoutUnlocked;
       this._syncUiToDOM();
     } catch (e) { console.warn(e); }
