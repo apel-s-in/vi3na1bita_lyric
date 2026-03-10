@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-27f1b201ea66412803563291ea383dce4ae398f4.idx
-│   │       ├── pack-27f1b201ea66412803563291ea383dce4ae398f4.pack
-│   │       └── pack-27f1b201ea66412803563291ea383dce4ae398f4.rev
+│   │       ├── pack-b30bb71da45fdf4e91df278706669f2865c67914.idx
+│   │       ├── pack-b30bb71da45fdf4e91df278706669f2865c67914.pack
+│   │       └── pack-b30bb71da45fdf4e91df278706669f2865c67914.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -94,7 +94,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 11:23:47 UTC
+Сгенерировано: 2026-03-10 11:24:17 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -721,7 +721,11 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 
 <audio id="audio-player"></audio>
 <div id="loader" class="loader hidden">Processing…</div>
-<script src="karaoke-editor.js"></script>
+<script src="ke-state.js"></script>
+<script src="ke-audio.js"></script>
+<script src="ke-timeline.js"></script>
+<script src="ke-editor.js"></script>
+<script src="ke-ui.js"></script>
 </body>
 </html>
 
