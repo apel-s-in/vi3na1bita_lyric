@@ -329,8 +329,8 @@ Object.assign(App, {
     this.sortTrack(tr); this.markDirty(); this.renderTimeline();
     this.selectItem(tr.id,it.id); this.renderPreview();
   },
-  addNewLine(){ this._addItem('line') },
-  addNewWord(){ this._addItem('word') },
+  addNewLine(){this._addItem('line')},
+  addNewWord(){this._addItem('word')},
   deleteSelected(){
     const tr=this.activeTrack(); if(!tr||!this.selected.ids.size)return;
     this.pushHistory('Delete');
