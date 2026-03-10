@@ -436,10 +436,6 @@ Object.assign(App, {
     const lCls=(playing,sel)=>`lyric-line${playing?' playing':''}${sel?' selected-ui':''}`;
     const isSel=(tid,id)=>this.selected.trackId===tid&&this.selected.ids.has(id);
     let html='';
-    const renderLine=(line,tid,extraCls='',extra='')=>{
-      const pl=t>=line.start&&t<line.end;
-      html+=`<div class="${lCls(pl,isSel(tid,line.id))}${extraCls}" data-id="${line.id}" data-tid="${tid}">${extra}</div>`;
-    };
     if(src===wordsTr&&!lineTr){
       wordsTr.items.filter(i=>i.kind==='line').sort((a,b)=>a.start-b.start).forEach(line=>{
         const words=wordsFor(wordsTr,line);
