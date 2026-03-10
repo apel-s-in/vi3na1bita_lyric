@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-9b8edcab1b9763ddf1dd5d4a40ea938e38831dbf.idx
-│   │       ├── pack-9b8edcab1b9763ddf1dd5d4a40ea938e38831dbf.pack
-│   │       └── pack-9b8edcab1b9763ddf1dd5d4a40ea938e38831dbf.rev
+│   │       ├── pack-3a80c8b812832af89703e4db6791d3245084c7ef.idx
+│   │       ├── pack-3a80c8b812832af89703e4db6791d3245084c7ef.pack
+│   │       └── pack-3a80c8b812832af89703e4db6791d3245084c7ef.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -93,7 +93,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 11:25:00 UTC
+Сгенерировано: 2026-03-10 11:25:28 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
