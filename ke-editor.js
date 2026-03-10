@@ -30,8 +30,9 @@ Object.assign(App, {
     const lineTr  = this.project.tracks.find(t => t.type === 'line');
     const wordsTr = this.project.tracks.find(t => t.type === 'words');
 
-    // Invalidate mapping before rebuild
+    // Пересобрать mapping явно один раз до цикла (не lazy)
     this.invalidatePreviewMap('preview-rebuild');
+    this.rebuildPreviewMap();
 
     const frag = document.createDocumentFragment();
 
@@ -307,24 +308,19 @@ Object.assign(App, {
     return row;
   },
 
-  _makeNumInput(val, min, max, step) {
+  _makeInput(type, val, opts = {}) {
     const inp = document.createElement('input');
-    inp.type  = 'number';
+    inp.type  = type;
     inp.value = val;
-    if (min  !== undefined) inp.min  = min;
-    if (max  !== undefined) inp.max  = max;
-    if (step !== undefined) inp.step = step;
-    inp.className = 'insp-num';
+    inp.className = type === 'number' ? 'insp-num' : 'insp-text';
+    if (opts.min  !== undefined) inp.min  = opts.min;
+    if (opts.max  !== undefined) inp.max  = opts.max;
+    if (opts.step !== undefined) inp.step = opts.step;
     return inp;
   },
-
-  _makeTextInput(val) {
-    const inp = document.createElement('input');
-    inp.type  = 'text';
-    inp.value = val;
-    inp.className = 'insp-text';
-    return inp;
-  },
+  // Обратная совместимость — тонкие обёртки
+  _makeNumInput(val, min, max, step) { return this._makeInput('number', val, {min, max, step}); },
+  _makeTextInput(val)                { return this._makeInput('text',   val); },
 
   /* ── shared change handler builder ── */
   _bindInspectorField(inp, tr, getItems, field, transform, label) {
