@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-f4a0ebe774b4721ee9d872fa4cb8672404669955.idx
-│   │       ├── pack-f4a0ebe774b4721ee9d872fa4cb8672404669955.pack
-│   │       └── pack-f4a0ebe774b4721ee9d872fa4cb8672404669955.rev
+│   │       ├── pack-0be7a33c357fa6722256266de26bdad828902b8d.idx
+│   │       ├── pack-0be7a33c357fa6722256266de26bdad828902b8d.pack
+│   │       └── pack-0be7a33c357fa6722256266de26bdad828902b8d.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -96,7 +96,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 13:51:15 UTC
+Сгенерировано: 2026-03-10 13:53:51 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -728,11 +728,36 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 
 <audio id="audio-player"></audio>
 <div id="loader" class="loader hidden">Processing…</div>
+<!-- FILE: /karaoke-editor.html  (script order only) -->
+
+<!-- Core state — no DOM, no layout -->
 <script src="ke-state.js"></script>
+
+<!-- DOM cache + dynamic registries -->
+<script src="ke-dom.js"></script>
+
+<!-- Audio, waveform, playback, highlights -->
 <script src="ke-audio.js"></script>
+
+<!-- Timeline render, drag, trim -->
 <script src="ke-timeline.js"></script>
+
+<!-- Preview line↔word mapping layer -->
+<script src="ke-preview-map.js"></script>
+
+<!-- Edit ops, inspector, preview orchestration, export, session -->
 <script src="ke-editor.js"></script>
+
+<!-- All layout: collapse, compact, lock, resize, reorder, fullscreen -->
+<script src="ke-layout.js"></script>
+
+<!-- Commands, hotkeys, modals, context menu, high-level init -->
 <script src="ke-ui.js"></script>
+
+<!-- Entry point -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
 </body>
 </html>
 
