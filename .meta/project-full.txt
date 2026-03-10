@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-e65767765866b0e60d7bf1e127dd914a39e790a8.idx
-│   │       ├── pack-e65767765866b0e60d7bf1e127dd914a39e790a8.pack
-│   │       └── pack-e65767765866b0e60d7bf1e127dd914a39e790a8.rev
+│   │       ├── pack-378e936e461b425e2999f3883a823ebeadb8eb2a.idx
+│   │       ├── pack-378e936e461b425e2999f3883a823ebeadb8eb2a.pack
+│   │       └── pack-378e936e461b425e2999f3883a823ebeadb8eb2a.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -93,7 +93,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 12:36:07 UTC
+Сгенерировано: 2026-03-10 12:39:15 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -1654,8 +1654,8 @@ const App = {
   charDrag:{active:false,itemId:null,trackId:null,charIdx:null,side:null,startX:0,initialStart:0,initialEnd:0},
   context:{trackId:null,itemId:null,cursorX:0},
   loop:{enabled:false,start:null,end:null},
-  hotkeysWaiting:null, keymap:{}, collapsed:{}, ui:{}, commands:{},
-  _dragModeBadge:null, _dragClamped:false, _rippleAffected:new Set(),
+  hotkeysWaiting:null,keymap:{},collapsed:{},ui:{},commands:{},layoutUnlocked:false,
+  _dragModeBadge:null,_dragClamped:false,_rippleAffected:new Set(),
 
   /* ── utils ── */
   activeTrack(){ return this.trackById(this.project.activeTrackId) },
@@ -1737,7 +1737,8 @@ const App = {
   persistUiPrefs(){
     try{
       const o={sidebarWidth:this.ui.sidebar.style.width,
-               dragMode:this.ui.dragMode.value,layerMode:this.ui.layerMode.value};
+               dragMode:this.ui.dragMode.value,layerMode:this.ui.layerMode.value,
+               layoutUnlocked:this.layoutUnlocked};
       this._uiPrefFields.forEach(f=>{o[f]=this[f]});
       localStorage.setItem(this.UI_KEY,JSON.stringify(o));
     }catch(e){console.warn(e)}
@@ -1749,6 +1750,7 @@ const App = {
       if(p.sidebarWidth)this.ui.sidebar.style.width=p.sidebarWidth;
       if(p.dragMode)this.ui.dragMode.value=p.dragMode;
       if(p.layerMode)this.ui.layerMode.value=p.layerMode;
+      if(p.layoutUnlocked!==undefined)this.layoutUnlocked=!!p.layoutUnlocked;
       this._syncUiToDOM();
     }catch(e){console.warn(e)}
   },
@@ -1893,7 +1895,7 @@ const App = {
       sidebarCollapseBtn:g('sidebar-collapse-btn'),
       inspectorCollapseBtn:g('inspector-collapse-btn'),previewCollapseBtn:g('preview-collapse-btn'),
       inspectorBody:g('inspector-body'),previewBody:g('preview-body'),previewPanel:g('preview-panel'),
-      toolbarCompactBtn:g('toolbar-compact-btn'),toolbar:g('toolbar'),toolbarRows:g('toolbar-rows'),
+      toolbarCompactBtn:g('toolbar-compact-btn'),btnLayoutLock:g('btn-layout-lock'),toolbar:g('toolbar'),
     };
   },
 };
