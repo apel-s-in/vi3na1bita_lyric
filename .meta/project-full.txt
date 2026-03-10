@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-65082b230c58b65a0c48bb7249a1879df53666e2.idx
-│   │       ├── pack-65082b230c58b65a0c48bb7249a1879df53666e2.pack
-│   │       └── pack-65082b230c58b65a0c48bb7249a1879df53666e2.rev
+│   │       ├── pack-e65767765866b0e60d7bf1e127dd914a39e790a8.idx
+│   │       ├── pack-e65767765866b0e60d7bf1e127dd914a39e790a8.pack
+│   │       └── pack-e65767765866b0e60d7bf1e127dd914a39e790a8.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -93,7 +93,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 12:21:55 UTC
+Сгенерировано: 2026-03-10 12:36:07 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -147,9 +147,11 @@ body{font:13px/1.35 "Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(
 .grp[draggable=true]:active{cursor:default}
 .grp.dragging{opacity:.4;border:1px dashed var(--acc)}
 .grp.drag-over{border:1px dashed var(--acc2);background:rgba(30,136,229,.08)}
-.grp-handle{display:flex;(this.ui.inspectorCollapseBtn,this.ui.inspectorPanel,'inspectorCollapsed');
-    setup(this.ui.previewCollapseBtn,this.ui.previewPanel,'previewCollapsed');
-  },
+.grp-handle{display:flex;align-items:center;padding:0 3px 0 0;color:var(--br2);cursor:grab;font-size:14px;line-height:1;flex-shrink:0}
+.grp-handle:hover{color:var(--mut)}
+.grp-handle::before{content:'⠿';font-size:12px}
+body.layout-locked .grp-handle{opacity:.35;cursor:not-allowed}
+body.layout-locked .grp[draggable=true]{cursor:default}
 
 /* VERTICAL layout for narrow screens */
 @media(max-width:900px){
@@ -350,8 +352,10 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .timeline-wrap[style*="outline"]{transition:outline .15s}
 
 /* PANEL COLLAPSED STATE */
-.panel.panel-collapsed{min-height:36px;flex:none}
+.panel.panel-collapsed{min-height:36px;flex:none;overflow:hidden}
 .panel.panel-collapsed .panel-body{display:none}
+#preview-panel.panel-collapsed{min-height:36px;height:36px}
+#inspector.panel-collapsed{min-height:36px}
 
 /* TOOLBAR ROW DRAG HIGHLIGHT */
 .row.row-drag-over{background:rgba(30,136,229,.06);outline:1px dashed rgba(30,136,229,.3);outline-offset:-1px}
