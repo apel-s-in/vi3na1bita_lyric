@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-3c2166e8d5a978d55c7c52771de4fb9a2fbbd1d9.idx
-│   │       ├── pack-3c2166e8d5a978d55c7c52771de4fb9a2fbbd1d9.pack
-│   │       └── pack-3c2166e8d5a978d55c7c52771de4fb9a2fbbd1d9.rev
+│   │       ├── pack-def049eae2f2437e47ca16ff2fe83ed4bd27eb60.idx
+│   │       ├── pack-def049eae2f2437e47ca16ff2fe83ed4bd27eb60.pack
+│   │       └── pack-def049eae2f2437e47ca16ff2fe83ed4bd27eb60.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -96,7 +96,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 13:55:12 UTC
+Сгенерировано: 2026-03-10 14:11:18 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -374,75 +374,28 @@ input[type=color]{width:36px;height:24px;padding:1px;border-radius:4px;border:1p
 .sidebar{transition:width .15s ease}
 .sidebar.collapsed-sidebar{transition:width .1s ease}
 
-/* FULLSCREEN TIMELINE */
-.workspace.timeline-expanded .workspace-main .sidebar,
-.workspace.timeline-expanded .workspace-main .resizer{display:none}
-.workspace.timeline-expanded .workspace-main .timeline-wrap{flex:1}
-/* ── ke-layout.css additions ──────────────────────────── */
-
-/* Fullscreen timeline — architectural, not dead code */
+/* FULLSCREEN TIMELINE — architectural, not dead code */
 .workspace.timeline-expanded .sidebar,
+.workspace.timeline-expanded #sidebar-resizer,
 .workspace.timeline-expanded #inspector,
-.workspace.timeline-expanded #preview-panel {
-  display: none !important;
-}
-.workspace.timeline-expanded #workspace-main {
-  flex: 1 1 auto !important;
-  height: 100% !important;
-}
+.workspace.timeline-expanded #preview-panel,
+.workspace.timeline-expanded #preview-resizer{display:none!important}
+.workspace.timeline-expanded #workspace-main{flex:1 1 auto!important;height:100%!important}
 
-/* Layout lock — body class applied by _applyLayoutLockUi() */
-body.layout-locked .grp-handle {
-  cursor: default;
-  pointer-events: none;
-}
+/* LAYOUT LOCK */
+body.layout-locked .grp-handle{cursor:not-allowed;pointer-events:none}
 body.layout-locked #sidebar-resizer,
 body.layout-locked #preview-resizer,
-body.layout-locked #timeline-resizer {
-  pointer-events: none;
-  opacity: 0.3;
-}
+body.layout-locked #timeline-resizer{pointer-events:none;opacity:.3}
 
-/* Drag ghost placeholder */
-.row .grp.dragging {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* Resizer active state */
+/* RESIZER ACTIVE */
 #timeline-resizer.active,
 #sidebar-resizer.active,
-#preview-resizer.active {
-  background: var(--accent, #4a7cdc);
-  opacity: 1;
-}
+#preview-resizer.active{background:var(--acc);opacity:1}
 
-/* Panel collapsed */
-.panel-collapsed > *:not(.panel-header) {
-  display: none !important;
-}
-.panel-collapsed {
-  min-height: 0 !important;
-  overflow: hidden;
-}
-
-/* Collapsed sidebar */
-.sidebar.collapsed-sidebar {
-  width: 0 !important;
-  min-width: 0 !important;
-  overflow: hidden;
-  border: none;
-}
-
-/* Inspector playing word highlight */
-.lyric-word.playing {
-  color: var(--accent, #4a7cdc);
-  font-weight: 700;
-}
-.lyric-line.playing {
-  background: rgba(74, 124, 220, 0.08);
-  border-left: 3px solid var(--accent, #4a7cdc);
-}
+/* TOOLBAR DRAG */
+.row.row-drag-over{background:rgba(30,136,229,.06);outline:1px dashed rgba(30,136,229,.3);outline-offset:-1px}
+.row .grp.dragging{opacity:.4;pointer-events:none}
 
 //=================================================
 // FILE: /karaoke-editor.html
