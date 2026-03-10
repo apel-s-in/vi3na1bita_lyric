@@ -62,9 +62,9 @@ vi3na1bita_lyric/
 │   ├── objects/
 │   │   ├── info/
 │   │   └── pack/
-│   │       ├── pack-a9b64e30cb9f713b832524d5044c0d61856bbf1f.idx
-│   │       ├── pack-a9b64e30cb9f713b832524d5044c0d61856bbf1f.pack
-│   │       └── pack-a9b64e30cb9f713b832524d5044c0d61856bbf1f.rev
+│   │       ├── pack-ebae2b781ae457982e2218b76ea7f672f31dd41a.idx
+│   │       ├── pack-ebae2b781ae457982e2218b76ea7f672f31dd41a.pack
+│   │       └── pack-ebae2b781ae457982e2218b76ea7f672f31dd41a.rev
 │   ├── refs/
 │   │   ├── heads/
 │   │   │   └── main
@@ -93,7 +93,7 @@ vi3na1bita_lyric/
 ├── ke-timeline.js
 └── ke-ui.js
 
-Сгенерировано: 2026-03-10 11:57:47 UTC
+Сгенерировано: 2026-03-10 11:59:35 UTC
 
 //=================================================
 // FILE: /.github/workflows/generate-context.yml
@@ -1237,8 +1237,8 @@ Object.assign(App, {
     this.sortTrack(tr); this.markDirty(); this.renderTimeline();
     this.selectItem(tr.id,it.id); this.renderPreview();
   },
-  addNewLine(){ this._addItem('line') },
-  addNewWord(){ this._addItem('word') },
+  addNewLine(){this._addItem('line')},
+  addNewWord(){this._addItem('word')},
   deleteSelected(){
     const tr=this.activeTrack(); if(!tr||!this.selected.ids.size)return;
     this.pushHistory('Delete');
