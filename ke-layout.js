@@ -348,6 +348,10 @@ Object.assign(App, {
      Same UX: drag by handle, reorder within row, order saved on drop.
   ═══════════════════════════════════════════ */
   _bindToolbarGroupDrag() {
+    // Один глобальный Escape-листенер для всех drag-сессий
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') this._toolbarDragEscape = true;
+    });
     document.querySelectorAll('.row').forEach(row => this._setupRowDragDrop(row));
   },
 
@@ -418,6 +422,8 @@ Object.assign(App, {
 
     row.addEventListener('pointermove', e => {
       if (!dragEl || !pointerOrigin) return;
+      // Глобальный Escape (флаг из _bindToolbarGroupDrag)
+      if (this._toolbarDragEscape) { this._toolbarDragEscape = false; cleanup(); return; }
       const dx = Math.abs(e.clientX - pointerOrigin.x);
       const dy = Math.abs(e.clientY - pointerOrigin.y);
 
@@ -452,16 +458,7 @@ Object.assign(App, {
 
     row.addEventListener('pointerup', finishDrag);
     row.addEventListener('pointercancel', cleanup);
-
-    // Escape key cancels drag
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && isDragging) {
-        // Return dragEl to original position: re-insert before ghost position
-        cleanup();
-      }
-    });
-
-    // Safety: if layout lock flips during drag, abort
+    // Safety: если layout lock флипнул во время drag — прерываем
     document.body.addEventListener('classChange_layoutLock', cleanup, { passive: true });
   },
 
