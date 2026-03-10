@@ -18,13 +18,13 @@ body{font:13px/1.35 "Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(
 
 /* DRAGGABLE GROUPS */
 .grp{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:2px 4px;border-radius:4px;border:1px solid transparent;cursor:default;transition:border-color .15s,background .15s;position:relative}
-.grp[draggable=true]{cursor:grab}
-.grp[draggable=true]:active{cursor:grabbing}
+.grp[draggable=true]{cursor:default}
+.grp[draggable=true]:active{cursor:default}
 .grp.dragging{opacity:.4;border:1px dashed var(--acc)}
 .grp.drag-over{border:1px dashed var(--acc2);background:rgba(30,136,229,.08)}
-.grp-handle{display:flex;align-items:center;padding:0 3px 0 0;color:var(--br2);cursor:grab;font-size:14px;line-height:1;flex-shrink:0}
-.grp-handle:hover{color:var(--mut)}
-.grp-handle::before{content:'⠿';font-size:12px}
+.grp-handle{display:flex;(this.ui.inspectorCollapseBtn,this.ui.inspectorPanel,'inspectorCollapsed');
+    setup(this.ui.previewCollapseBtn,this.ui.previewPanel,'previewCollapsed');
+  },
 
 /* VERTICAL layout for narrow screens */
 @media(max-width:900px){
